@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:jappeos_installer/pages/installer_page.dart';
-import 'package:shade_ui/shade_ui.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 class WifiPage extends InstallerPage {
   WifiPage() : super('WIFI');
@@ -8,11 +7,13 @@ class WifiPage extends InstallerPage {
   int wifiConnectRadioChoice = 0;
 
   @override
-  List<Widget> widget(void Function(void Function()) setState, void Function() nextPage, BuildContext context) {
+  List<Widget> widget(BuildContext context) {
     return [
-      const Text("Connecting this device to a WIFI network allows you to install third-party-software, download updates, automatically detect your timezone, and install full support for your language."),
-      const SizedBox(height: BPPresets.small),
-      ListTile(
+      const Text("Connect to the internet").h3(),
+      Gap(2 * Theme.of(context).scaling),
+      const Text("Connecting this device to a WIFI network allows you to install third-party-software, download updates, automatically detect your timezone, and install full support for your language.").muted(),
+      SizedBox(height: 8 * Theme.of(context).scaling),
+      /*ListTile(
         title: const Text('Do not connect me to a WIFI network.'),
         leading: Radio(
           value: 0,
@@ -35,7 +36,7 @@ class WifiPage extends InstallerPage {
             });
           },
         ),
-      ),
+      ),*/
       const Expanded(child: Placeholder()),
     ];
   }

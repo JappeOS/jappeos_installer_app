@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:jappeos_installer/pages/installer_page.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 class UpdatesAndSoftwarePage extends InstallerPage {
   UpdatesAndSoftwarePage() : super('Updates & Software');
@@ -8,10 +8,11 @@ class UpdatesAndSoftwarePage extends InstallerPage {
   bool installUpdatesNow = true;
 
   @override
-  List<Widget> widget(void Function(void Function()) setState, void Function() nextPage, BuildContext context) {
+  List<Widget> widget(BuildContext context) {
     return [
-      Text("Installation Type", style: Theme.of(context).textTheme.titleLarge),
-      ListTile(
+      const Text("Updates & Software").h3(),
+      Gap(2 * Theme.of(context).scaling),
+      /*ListTile(
         title: const Text('Minimal Installation'),
         subtitle: const Text('Web browser and system utilities.'),
         leading: Radio(
@@ -49,7 +50,7 @@ class UpdatesAndSoftwarePage extends InstallerPage {
             });
           },
         ),
-      ),
+      ),*/
       //const Expanded(child: Placeholder()),
     ];
   }

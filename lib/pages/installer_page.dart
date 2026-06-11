@@ -1,9 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 abstract class InstallerPage {
   String title;
-
-  List<Widget> widget(void Function(void Function()) setState, void Function() nextPage, BuildContext context);
-
+  List<Widget> widget(BuildContext context);
   InstallerPage(this.title);
 }

@@ -1,23 +1,33 @@
 name: jappeos_installer
-description: Installer app for JappeOS.
-
+description: "Installer app for JappeOS."
 publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.5 <4.0.0'
+  sdk: ">=3.8.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  
-  shade_ui:
+
+  shadcn_flutter:
     git:
-      url: https://github.com/Jappe-OS/ShadeUI.git
-      ref: master-2.0
+      url: https://github.com/JappeOS/shadcn_flutter.git
+      ref: master
+
+  jappeos_services:
+    git:
+      url: https://github.com/JappeOS/jappeos_services.git
+      ref: dev
 
   provider: ^6.0.3
+  widget_and_text_animator: ^1.1.5
+  package_info_plus: ^9.0.0
+  crypt: ^4.3.1
+  flutter_map: ^8.3.0
+  jovial_svg: ^1.1.29
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:
@@ -27,3 +37,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/maps/world.svg
+    - assets/timezones/combined.json
+    - assets/timezones/combined_simplified.json
