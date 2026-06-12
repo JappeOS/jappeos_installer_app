@@ -1,57 +1,57 @@
 import 'package:jappeos_installer/pages/installer_page.dart';
+import 'package:provider/provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+
+import '../provider/install_provider.dart';
 
 class UpdatesAndSoftwarePage extends InstallerPage {
   UpdatesAndSoftwarePage() : super('Updates & Software');
 
-  int installationTypeChoice = 0;
-  bool installUpdatesNow = true;
+  @override
+  List<Widget> widget(BuildContext context, int index) {
+    return [const _UpdatesAndSoftwarePageWidget()];
+  }
+}
+
+class _UpdatesAndSoftwarePageWidget extends StatelessWidget {
+  const _UpdatesAndSoftwarePageWidget();
 
   @override
-  List<Widget> widget(BuildContext context) {
-    return [
-      const Text("Updates & Software").h3(),
-      Gap(2 * Theme.of(context).scaling),
-      /*ListTile(
-        title: const Text('Minimal Installation'),
-        subtitle: const Text('Web browser and system utilities.'),
-        leading: Radio(
-          value: 0,
-          groupValue: installationTypeChoice,
-          onChanged: (value) {
-            setState(() {
-              installationTypeChoice = value as int;
-            });
-          },
+  Widget build(BuildContext context) {
+    final installProvider = context.watch<InstallProvider>();
+    final installProprietary = installProvider.installPlan.installProprietary;
+    final installRecommendedDrivers = installProvider.installPlan.installRecommendedDrivers;
+    final scaling = Theme.of(context).scaling;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text("Updates & Software").h3(),
+        Gap(2 * scaling),
+        const Text("Choose you preferred settings for installing software, or keep recommended settings.").muted(),
+        Gap(8 * scaling),
+        Checkbox(
+          state: installProprietary
+              ? CheckboxState.checked
+              : CheckboxState.unchecked,
+          onChanged: (s) => installProvider.installPlan
+              = installProvider.installPlan.copyWith(
+            installProprietary: s == CheckboxState.checked,
+          ),
+          trailing: const Text('Install recommemded proprietary software'),
         ),
-      ),
-      ListTile(
-        title: const Text('Normal Installation'),
-        subtitle: const Text('Web browser, system utilities, media players, office apps...'),
-        leading: Radio(
-          value: 1,
-          groupValue: installationTypeChoice,
-          onChanged: (value) {
-            setState(() {
-              installationTypeChoice = value as int;
-            });
-          },
+        Gap(8 * scaling),
+        Checkbox(
+          state: installRecommendedDrivers
+              ? CheckboxState.checked
+              : CheckboxState.unchecked,
+          onChanged: (s) => installProvider.installPlan
+              = installProvider.installPlan.copyWith(
+            installRecommendedDrivers: s == CheckboxState.checked,
+          ),
+          trailing: const Text('Install recommemded drivers automatically'),
         ),
-      ),
-      Text("Updates", style: Theme.of(context).textTheme.titleLarge),
-      ListTile(
-        title: const Text('Install Updates While Installing JappeOS'),
-        subtitle: const Text('This saves time after installation.'),
-        leading: Checkbox(
-          value: installUpdatesNow,
-          onChanged: (value) {
-            setState(() {
-              installUpdatesNow = value as bool;
-            });
-          },
-        ),
-      ),*/
-      //const Expanded(child: Placeholder()),
-    ];
+      ],
+    );
   }
 }

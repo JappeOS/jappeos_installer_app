@@ -9,7 +9,7 @@ class TimezonePage extends InstallerPage {
   TimezonePage() : super('Timezone');
 
   @override
-  List<Widget> widget(BuildContext context) {
+  List<Widget> widget(BuildContext context, int index) {
     return [const Expanded(child: _TimezonePageWidget())];
   }
 }
@@ -22,14 +22,42 @@ class _TimezonePageWidget extends StatefulWidget {
 }
 
 class _TimezonePageWidgetState extends State<_TimezonePageWidget> {
-  final _regionKey = const SelectKey<String>('region');
-  final _zoneKey = const SelectKey<String>('zone');
-  String? _selectedTimezone;
+  List<String> _timezones = [];
+  final Map<String, List<String>> _regionMap = {};
 
   @override
   Widget build(BuildContext context) {
     final installProvider = context.watch<InstallProvider>();
-    final timezones = installProvider.localeInfo?.timezones;
+    String? currentTimezone;
+    try {
+      currentTimezone = installProvider.service.currentTimezone;
+    } catch (e) {
+      // Ignore, this can throw if the service isn't ready yet,
+      // but it will be called again when it is.
+    }
+
+    final receivedTimezones = installProvider.localeInfo?.timezones ?? [];
+    if (_timezones != receivedTimezones) {
+      _timezones = receivedTimezones;
+      _regionMap.clear();
+      for (final tz in _timezones) {
+        final index = tz.indexOf('/');
+
+        if (index == -1) continue;
+
+        final region = tz.substring(0, index);
+        final zone = tz.substring(index + 1);
+
+        _regionMap.putIfAbsent(region, () => []).add(zone);
+      }
+    }
+
+    final index = currentTimezone?.indexOf('/');
+    final currentRegion = currentTimezone?.substring(0, index);
+    final currentZone = index == null
+        ? null
+        : currentTimezone?.substring(index + 1);
+
     final scaling = Theme.of(context).scaling;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -41,13 +69,10 @@ class _TimezonePageWidgetState extends State<_TimezonePageWidget> {
         Gap(8 * scaling),
         Expanded(
           child: TimezoneMap(
-            selectedTimezone: _selectedTimezone,
-            availableTimezones: timezones ?? [],
+            selectedTimezone: currentTimezone,
+            availableTimezones: _timezones,
             onTimezoneSelected: (tz) {
-              print("Selected timezone: $tz");
-              setState(() {
-                _selectedTimezone = tz;
-              });
+              installProvider.service.setCurrentTimezone(tz);
             },
           ),
         ),
@@ -55,42 +80,74 @@ class _TimezonePageWidgetState extends State<_TimezonePageWidget> {
         Row(
           spacing: 16 * scaling,
           children: [
+            const Text("Region"),
             Expanded(
-              child: FormField<String>(
-                key: _regionKey,
-                label: const Text('Region'),
-                child: Select<String>(
-                  itemBuilder: (context, item) => Text(item),
-                  popup: SelectPopup.builder(
-                    searchPlaceholder: const Text('Search regions'),
-                    builder: (context, searchQuery) {
-                      return const SelectItemList(children: []);
-                    },
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: double.infinity,
-                    maxWidth: double.infinity,
-                  ),
+              child: Select<String>(
+                itemBuilder: (context, item) => Text(item),
+                popup: SelectPopup.builder(
+                  searchPlaceholder: const Text('Search regions'),
+                  builder: (context, searchQuery) {
+                    final filteredRegions = searchQuery == null
+                        ? _regionMap.entries
+                        : _regionMap.entries.where((entry)
+                            => entry.key.toLowerCase().contains(
+                                  searchQuery.toLowerCase().trim()));
+                    return SelectItemList(
+                      children: [
+                        for (final entry in filteredRegions)
+                          SelectItemButton(
+                            value: entry.key,
+                            child: Text(entry.key),
+                          ),
+                      ],
+                    );
+                  },
                 ),
+                constraints: const BoxConstraints(
+                  minWidth: double.infinity,
+                  maxWidth: double.infinity,
+                ),
+                placeholder: const Text('Select a region'),
+                value: currentRegion,
+                onChanged: (value) {
+                  installProvider.service.setCurrentTimezone("$value/$currentZone");
+                },
               ),
             ),
+            const Gap(0),
+            const Text("Zone"),
             Expanded(
-              child: FormField<String>(
-                key: _zoneKey,
-                label: const Text('Zone'),
-                child: Select<String>(
-                  itemBuilder: (context, item) => Text(item),
-                  popup: SelectPopup.builder(
-                    searchPlaceholder: const Text('Search zones'),
-                    builder: (context, searchQuery) {
-                      return const SelectItemList(children: []);
-                    },
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: double.infinity,
-                    maxWidth: double.infinity,
-                  ),
+              child: Select<String>(
+                itemBuilder: (context, item) => Text(item),
+                popup: SelectPopup.builder(
+                  searchPlaceholder: const Text('Search zones'),
+                  builder: (context, searchQuery) {
+                    final zones = _regionMap[currentRegion] ?? [];
+                    final filteredZones = searchQuery == null
+                        ? zones
+                        : zones.where((entry)
+                            => entry.toLowerCase().contains(
+                                  searchQuery.toLowerCase().trim()));
+                    return SelectItemList(
+                      children: [
+                        for (final entry in filteredZones)
+                          SelectItemButton(
+                            value: entry,
+                            child: Text(entry),
+                          ),
+                      ],
+                    );
+                  },
                 ),
+                constraints: const BoxConstraints(
+                  minWidth: double.infinity,
+                  maxWidth: double.infinity,
+                ),
+                placeholder: const Text('Select a zone'),
+                value: currentZone,
+                onChanged: (value) {
+                  installProvider.service.setCurrentTimezone("$currentRegion/$value");
+                },
               ),
             ),
           ],

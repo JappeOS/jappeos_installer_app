@@ -9,7 +9,7 @@ class WelcomePage extends InstallerPage {
   WelcomePage() : super('Welcome');
 
   @override
-  List<Widget> widget(BuildContext context) {
+  List<Widget> widget(BuildContext context, int index) {
     return [const Expanded(child: _WelcomePageWidget())];
   }
 }

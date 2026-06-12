@@ -10,7 +10,7 @@ class KeyboardLayoutPage extends InstallerPage {
   KeyboardLayoutPage() : super('Keyboard Layout');
 
   @override
-  List<Widget> widget(BuildContext context) {
+  List<Widget> widget(BuildContext context, int index) {
     return [const Expanded(child: _KeyboardLayoutPageWidget())];
   }
 }

@@ -28,6 +28,7 @@ dependencies:
   flutter_map: ^8.3.0
   jovial_svg: ^1.1.29
   latlong2: ^0.9.1
+  collection: ^1.19.1
 
 dev_dependencies:
   flutter_test:

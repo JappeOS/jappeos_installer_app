@@ -91,51 +91,53 @@ class _InteractiveTimezoneMap extends StatelessWidget {
         ? null
         : data.featureByTimezone[selectedTimezone];
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapUp: (details) {
-        final renderBox = context.findRenderObject() as RenderBox?;
-        if (renderBox == null) {
-          return;
-        }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = constraints.biggest;
 
-        final size = renderBox.size;
-        final projection = _TimezoneProjection(size);
-        final coordinate = projection.offsetToCoordinate(details.localPosition);
-        final feature = data.hitTest(coordinate);
-        if (feature == null) {
-          return;
-        }
-        if (available != null && !available.contains(feature.timezoneId)) {
-          return;
-        }
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapUp: (details) {
+            final projection = _TimezoneProjection(size);
+            final coordinate = projection.offsetToCoordinate(
+              details.localPosition,
+            );
+            final feature = data.hitTest(coordinate);
+            if (feature == null) {
+              return;
+            }
+            if (available != null && !available.contains(feature.timezoneId)) {
+              return;
+            }
 
-        onTimezoneSelected(feature.timezoneId);
+            onTimezoneSelected(feature.timezoneId);
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ScalableImageWidget.fromSISource(
+                si: ScalableImageSource.fromSvg(
+                  rootBundle,
+                  'assets/maps/world.svg',
+                  compact: true,
+                  warnF: (_) {},
+                ),
+                fit: BoxFit.fill,
+              ),
+              CustomPaint(
+                painter: _TimezonePainter(
+                  features: data.features,
+                  selectedFeature: selectedFeature,
+                ),
+              ),
+              if (selectedFeature != null)
+                CustomPaint(
+                  painter: _TimezoneMarkerPainter(feature: selectedFeature),
+                ),
+            ],
+          ),
+        );
       },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          ScalableImageWidget.fromSISource(
-            si: ScalableImageSource.fromSvg(
-              rootBundle,
-              'assets/maps/world.svg',
-              compact: true,
-              warnF: (_) {},
-            ),
-            fit: BoxFit.fill,
-          ),
-          CustomPaint(
-            painter: _TimezonePainter(
-              features: data.features,
-              selectedFeature: selectedFeature,
-            ),
-          ),
-          if (selectedFeature != null)
-            CustomPaint(
-              painter: _TimezoneMarkerPainter(feature: selectedFeature),
-            ),
-        ],
-      ),
     );
   }
 }
@@ -341,6 +343,8 @@ class _TimezoneMarkerPainter extends CustomPainter {
 class _TimezoneProjection {
   static const aspectRatio = 1570.2 / 759.36;
   static const _centralMeridian = 15.0;
+  static const _topLatitude = 84.0;
+  static const _bottomLatitude = -90.0;
 
   final Size size;
 
@@ -349,7 +353,9 @@ class _TimezoneProjection {
   Offset coordinateToOffset(Offset coordinate) {
     final normalizedLongitude = (coordinate.dx - _centralMeridian + 180) % 360;
     final x = (normalizedLongitude / 360) * size.width;
-    final y = ((90 - coordinate.dy) / 180) * size.height;
+    final y =
+        ((_topLatitude - coordinate.dy) / (_topLatitude - _bottomLatitude)) *
+        size.height;
     return Offset(x, y);
   }
 
@@ -357,7 +363,9 @@ class _TimezoneProjection {
     final longitude = _normalizeLongitude(
       (offset.dx / size.width) * 360 + _centralMeridian - 180,
     );
-    final latitude = 90 - (offset.dy / size.height) * 180;
+    final latitude =
+        _topLatitude -
+        (offset.dy / size.height) * (_topLatitude - _bottomLatitude);
     return Offset(longitude.clamp(-180, 180), latitude.clamp(-90, 90));
   }
 }
@@ -375,19 +383,29 @@ double _normalizeLongitude(double longitude) {
 
 Path _pathForPolygon(TimezonePolygon polygon, _TimezoneProjection projection) {
   final path = Path()..fillType = PathFillType.evenOdd;
+  final seamThreshold = projection.size.width / 2;
 
   for (final ring in polygon.rings) {
     if (ring.isEmpty) {
       continue;
     }
 
-    final first = projection.coordinateToOffset(ring.first);
-    path.moveTo(first.dx, first.dy);
+    var previous = projection.coordinateToOffset(ring.first);
+    var crossesSeam = false;
+    path.moveTo(previous.dx, previous.dy);
     for (final coordinate in ring.skip(1)) {
       final point = projection.coordinateToOffset(coordinate);
-      path.lineTo(point.dx, point.dy);
+      if ((point.dx - previous.dx).abs() > seamThreshold) {
+        crossesSeam = true;
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+      previous = point;
     }
-    path.close();
+    if (!crossesSeam) {
+      path.close();
+    }
   }
 
   return path;

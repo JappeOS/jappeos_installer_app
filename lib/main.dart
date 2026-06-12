@@ -1,3 +1,4 @@
+import 'package:jappeos_installer/pages/user_setup_page.dart';
 import 'package:jappeos_services/jappeos_services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import 'package:widget_and_text_animator/widget_and_text_animator.dart';
 import 'pages/installation_type_page.dart';
 import 'pages/installer_page.dart';
 import 'pages/keyboard_layout_page.dart';
+import 'pages/partitioning_page.dart';
 import 'pages/timezone_page.dart';
 import 'pages/updates_and_software_page.dart';
 import 'pages/welcome_page.dart';
@@ -67,9 +69,11 @@ class _AppMainState extends State<_AppMain> {
       WelcomePage(),
       KeyboardLayoutPage(),
       TimezonePage(),
-      WifiPage(),
+      UserSetupPage(),
       UpdatesAndSoftwarePage(),
+      //WifiPage(),
       InstallationTypePage(),
+      PartitioningPage(),
     ];
   }
 
@@ -98,7 +102,7 @@ class _AppMainState extends State<_AppMain> {
                         ? CrossAxisAlignment.center
                         : CrossAxisAlignment.start,
                     children: [
-                      ...e.widget(context),
+                      ...e.widget(context, _pages.indexOf(e)),
                     ],
                   ),
                 ))

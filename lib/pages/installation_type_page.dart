@@ -1,72 +1,67 @@
 import 'package:jappeos_installer/pages/installer_page.dart';
+import 'package:jappeos_services/jappeos_services.dart';
+import 'package:provider/provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+
+import '../provider/install_provider.dart';
 
 class InstallationTypePage extends InstallerPage {
   InstallationTypePage() : super('Installation Type');
 
-  int installationTypeChoice = 0;
-  bool encryptForSecurity = true;
-  bool useLVM = false;
+  @override
+  List<Widget> widget(BuildContext context, int index) {
+    return [const _InstallationTypePage()];
+  }
+}
+
+class _InstallationTypePage extends StatefulWidget {
+  const _InstallationTypePage();
 
   @override
-  List<Widget> widget(BuildContext context) {
-    return [
-      const Text("Installation Type").h3(),
-      Gap(2 * Theme.of(context).scaling),
-      const Text("This device currently has no detected operating systems, what would you like to do?"),
-      /*ListTile(
-        title: const Text('Erase disk and install JappeOS'),
-        subtitle: const Row(children: [Text('Warning: ', style: TextStyle(color: Colors.red)), Text('this will delete any files on the disk.')]),
-        leading: Radio(
-          value: 0,
-          groupValue: installationTypeChoice,
-          onChanged: (value) {
-            setState(() {
-              installationTypeChoice = value as int;
-            });
-          },
-        ),
+  State<_InstallationTypePage> createState() => _InstallationTypePageState();
+}
+
+class _InstallationTypePageState extends State<_InstallationTypePage> {
+  @override
+  Widget build(BuildContext context) {
+    final installProvider = context.watch<InstallProvider>();
+    final scaling = Theme.of(context).scaling;
+    return RadioGroup(
+      value: installProvider.selectedDiskInstallMode,
+      onChanged: (v) => installProvider.selectedDiskInstallMode = v,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text("Installation Type").h3(),
+          Gap(2 * scaling),
+          const Text("Please select an installation type below.").muted(),
+          Gap(8 * scaling),
+          const RadioCard(
+            value: InstallDiskMode.erase,
+            child: Basic(
+              title: Text('Erase'),
+              content: Text('Erase an existing installation or empty hard drive completely, and install JappeOS.'),
+            ),
+          ),
+          Gap(8 * scaling),
+          const RadioCard(
+            value: InstallDiskMode.manual,
+            child: Basic(
+              title: Text('Manual'),
+              content: Text('If partitions are already set-up, pick mountpoints and install. This only overwrites selected partitions on the selected hard drive.'),
+            ),
+          ),
+          Gap(8 * scaling),
+          const RadioCard(
+            value: InstallDiskMode.custom,
+            child: Basic(
+              title: Text('Custom'),
+              content: Text('Edit partitions on a hard drive, then install JappeOS on the selected ones.'),
+            ),
+          ),
+        ],
       ),
-      ListTile(
-        enabled: installationTypeChoice == 0,
-        title: const Text('Encrypt the new JappeOS installation for security'),
-        subtitle: const Text('You will choose a security key in the next step.'),
-        leading: Checkbox(
-          value: encryptForSecurity,
-          onChanged: installationTypeChoice == 0 ? (value) {
-            setState(() {
-              encryptForSecurity = value as bool;
-            });
-          } : null,
-        ),
-      ),
-      ListTile(
-        enabled: installationTypeChoice == 0,
-        title: const Text('Use LVM with the new JappeOS installation.'),
-        subtitle: const Text('This will set-up Logical Volume Management. It allows taking snapshots and easier partition resizing.'),
-        leading: Checkbox(
-          value: useLVM,
-          onChanged: installationTypeChoice == 0 ? (value) {
-            setState(() {
-              useLVM = value as bool;
-            });
-          } : null,
-        ),
-      ),
-      SizedBox(height: 32 * Theme.of(context).scaling),
-      ListTile(
-        title: const Text('Something else'),
-        subtitle: const Text('You can create or resize partitions yourself, or choose multiple partitions for JappeOS.'),
-        leading: Radio(
-          value: 1,
-          groupValue: installationTypeChoice,
-          onChanged: (value) {
-            setState(() {
-              installationTypeChoice = value as int;
-            });
-          },
-        ),
-      ),*/
-    ];
+    );
   }
 }

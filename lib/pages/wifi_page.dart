@@ -7,7 +7,7 @@ class WifiPage extends InstallerPage {
   int wifiConnectRadioChoice = 0;
 
   @override
-  List<Widget> widget(BuildContext context) {
+  List<Widget> widget(BuildContext context, int index) {
     return [
       const Text("Connect to the internet").h3(),
       Gap(2 * Theme.of(context).scaling),
