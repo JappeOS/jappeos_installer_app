@@ -1,3 +1,4 @@
+import 'package:jappeos_installer/pages/summary_page.dart';
 import 'package:jappeos_installer/pages/user_setup_page.dart';
 import 'package:jappeos_services/jappeos_services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -12,7 +13,6 @@ import 'pages/partitioning_page.dart';
 import 'pages/timezone_page.dart';
 import 'pages/updates_and_software_page.dart';
 import 'pages/welcome_page.dart';
-import 'pages/wifi_page.dart';
 import 'provider/install_provider.dart';
 import 'provider/page_provider.dart';
 
@@ -74,6 +74,7 @@ class _AppMainState extends State<_AppMain> {
       //WifiPage(),
       InstallationTypePage(),
       PartitioningPage(),
+      SummaryPage(),
     ];
   }
 
