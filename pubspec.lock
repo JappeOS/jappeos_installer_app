@@ -57,8 +57,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.2"
-<<<<<<< HEAD
-=======
   code_assets:
     dependency: transitive
     description:
@@ -67,7 +65,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.1"
->>>>>>> db18617 (Remove extra stuff an implement backend communication and better page management)
   collection:
     dependency: "direct main"
     description:
@@ -76,8 +73,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
-<<<<<<< HEAD
-=======
   convert:
     dependency: transitive
     description:
@@ -166,7 +161,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.5+3"
->>>>>>> db18617 (Remove extra stuff an implement backend communication and better page management)
   fake_async:
     dependency: transitive
     description:
@@ -175,8 +169,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.3"
-<<<<<<< HEAD
-=======
   ffi:
     dependency: transitive
     description:
@@ -193,7 +185,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
->>>>>>> db18617 (Remove extra stuff an implement backend communication and better page management)
   flutter:
     dependency: "direct main"
     description: flutter
@@ -225,15 +216,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-<<<<<<< HEAD
-  leak_tracker:
-    dependency: transitive
-    description:
-      name: leak_tracker
-      sha256: "33e2e26bdd85a0112ec15400c8cbffea70d0f9c3407491f672a2fad47915e2de"
-      url: "https://pub.dev"
-    source: hosted
-=======
   flutter_web_plugins:
     dependency: transitive
     description: flutter
@@ -284,7 +266,7 @@ packages:
     description:
       path: "."
       ref: dev
-      resolved-ref: "1ee39b2efcc0e3040f2211570309c596fc2a0a8f"
+      resolved-ref: "00b76a132df761b5c3e963be4649add486e8a5c6"
       url: "https://github.com/JappeOS/jappeos_services.git"
     source: git
     version: "1.0.0+1"
@@ -343,7 +325,6 @@ packages:
       sha256: "33e2e26bdd85a0112ec15400c8cbffea70d0f9c3407491f672a2fad47915e2de"
       url: "https://pub.dev"
     source: hosted
->>>>>>> db18617 (Remove extra stuff an implement backend communication and better page management)
     version: "11.0.2"
   leak_tracker_flutter_testing:
     dependency: transitive
@@ -401,8 +382,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.18.0"
-<<<<<<< HEAD
-=======
   mgrs_dart:
     dependency: transitive
     description:
@@ -411,7 +390,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.0"
->>>>>>> db18617 (Remove extra stuff an implement backend communication and better page management)
   nested:
     dependency: transitive
     description:
@@ -460,11 +438,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
-<<<<<<< HEAD
-  pluto_menu_bar:
-=======
   path_provider:
->>>>>>> db18617 (Remove extra stuff an implement backend communication and better page management)
     dependency: transitive
     description:
       name: path_provider
@@ -718,8 +692,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.9"
-<<<<<<< HEAD
-=======
   typed_data:
     dependency: transitive
     description:
@@ -744,7 +716,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.5.3"
->>>>>>> db18617 (Remove extra stuff an implement backend communication and better page management)
   vector_math:
     dependency: transitive
     description:
@@ -761,11 +732,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "15.2.0"
-<<<<<<< HEAD
-sdks:
-  dart: ">=3.10.0-0 <4.0.0"
-  flutter: ">=3.18.0-18.0.pre.54"
-=======
   web:
     dependency: transitive
     description:
@@ -873,4 +839,3 @@ sdks:
 sdks:
   dart: ">=3.10.3 <4.0.0"
   flutter: ">=3.38.4"
->>>>>>> db18617 (Remove extra stuff an implement backend communication and better page management)
