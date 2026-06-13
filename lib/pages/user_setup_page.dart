@@ -29,6 +29,7 @@ class _UserSetupPageWidget extends StatefulWidget {
 
 class _UserSetupPageWidgetState extends State<_UserSetupPageWidget>
     with AutomaticKeepAliveClientMixin<_UserSetupPageWidget> {
+  late PageProvider _pageProvider;
   final _nameKey = const TextFieldKey('name');
   final _passwordKey = const TextFieldKey('password');
   final _hostnameKey = const TextFieldKey('hostname');
@@ -66,8 +67,14 @@ class _UserSetupPageWidgetState extends State<_UserSetupPageWidget>
   }
 
   @override
+  void didChangeDependencies() {
+    _pageProvider = context.read<PageProvider>();
+    super.didChangeDependencies();
+  }
+
+  @override
   void dispose() {
-    context.read<PageProvider>().unregisterFormHandler(widget.index);
+    _pageProvider.unregisterFormHandler(widget.index);
     super.dispose();
   }
 
