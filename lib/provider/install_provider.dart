@@ -26,7 +26,34 @@ class InstallProvider extends ChangeNotifier {
   }
 
   LocaleInfo? _localeInfo;
-  StorageInfo? _storageInfo;
+  StorageInfo? _storageInfo = StorageInfo(
+    devices: {
+      "/dev/sda": StorageDeviceInfo(
+        device: "/dev/sda",
+        sizeMiB: 488281,
+        partitions: [
+          StoragePartitionInfo(
+            device: "/dev/sda1",
+            filesystem: StorageFilesystemType.fat32,
+            sizeMiB: 159,
+            mountPoint: "/boot/efi",
+          ),
+          StoragePartitionInfo(
+            device: "/dev/sda2",
+            filesystem: StorageFilesystemType.ext4,
+            sizeMiB: 488281 - 159 - 81380,
+            mountPoint: "/",
+          ),
+          StoragePartitionInfo(
+            device: "/dev/sda#free1",
+            filesystem: StorageFilesystemType.freeSpace,
+            sizeMiB: 81380,
+            mountPoint: "",
+          ),
+        ],
+      ),
+    },
+  );
   List<String> _planWarnings = [];
   InstallDiskMode _selectedDiskInstallMode = InstallDiskMode.erase;
   int _latestPlanId = 0;
@@ -61,13 +88,16 @@ class InstallProvider extends ChangeNotifier {
 
   Future<void> createPlan() async {
     _planWarnings.clear();
-    if (_latestPlanId != 0) {
-      await service.cancelInstallPlan(_latestPlanId);
+    try {
+      if (_latestPlanId != 0) {
+        await service.cancelInstallPlan(_latestPlanId);
+      }
+      final res = await service.createInstallPlan(_installPlan);
+      _latestPlanId = res.planId;
+      _planWarnings = res.warnings;
+    } finally {
+      notifyListeners();
     }
-    final res = await service.createInstallPlan(_installPlan);
-    _latestPlanId = res.planId;
-    _planWarnings = res.warnings;
-    notifyListeners();
   }
 
   Future<void> beginInstallation() async {
