@@ -4,6 +4,7 @@ import 'package:jappeos_services/jappeos_services.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
+import '../disk_operation_stringifier.dart';
 import '../provider/install_provider.dart';
 import '../provider/page_provider.dart';
 import '../widgets/partition_view.dart';
@@ -231,10 +232,7 @@ class _ManualPageState extends State<_ManualPage> {
 
     final installProvider = context.read<InstallProvider>();
     installProvider.installPlan = installProvider.installPlan.copyWith(
-      disk: InstallDiskInfo.manual(
-        widget.selectedDevice!,
-        _mounts.values.toList(),
-      ),
+      disk: _createDiskInfo(),
     );
 
     return true;
@@ -341,7 +339,7 @@ class _ManualPageState extends State<_ManualPage> {
                     onPartitionContextMenu: _buildMenuItems,
                   ),
                 ),
-                _buildOperationsList(),
+                _buildOperationsList(installProvider.storageInfo),
               ],
             ),
           ),
@@ -350,9 +348,9 @@ class _ManualPageState extends State<_ManualPage> {
     );
   }
 
-  Widget _buildOperationsList() {
+  Widget _buildOperationsList(StorageInfo? storageInfo) {
     final scaling = Theme.of(context).scaling;
-    Widget item(String text) => Text("* $text").italic();
+    final diskInfo = _createDiskInfo();
     return OutlinedContainer(
       width: 250,
       padding: EdgeInsets.all(8 * scaling),
@@ -363,18 +361,10 @@ class _ManualPageState extends State<_ManualPage> {
           const Text("Operations").medium().bold(),
           const Divider(),
           Expanded(
-            child: ListView(
-              children: [
-                for (final mnt in _mounts.entries) ...[
-                  item("Mount ${mnt.value.partition} to ${mnt.value.mountPoint}"),
-                  if (mnt.value.mountPoint == kStorageMountpointBoot)
-                    item("Install boot files to ${mnt.value.partition}")
-                  else if (mnt.value.mountPoint == kStorageMountpointRoot)
-                    item("Install system files to ${mnt.value.partition}")
-                  else
-                    item("Install required JappeOS files to ${mnt.value.partition}")
-                ],
-              ],
+            child: SingleChildScrollView(
+              child: storageInfo != null && diskInfo != null
+                  ? Text(stringifyDiskOperations(storageInfo, diskInfo)).italic()
+                  : null,
             ),
           ),
         ],
@@ -405,13 +395,22 @@ class _ManualPageState extends State<_ManualPage> {
       title: const Text("Error"),
       content: const Text("Make sure that there is exactly one boot partition and exactly one root partition."),
       actions: [
-        OutlineButton(
+        PrimaryButton(
           onPressed: () => Navigator.pop(context),
           child: const Text("Aknowledge"),
         ),
       ],
     ),
   );
+
+  InstallDiskInfo? _createDiskInfo() {
+    final mounts = _mounts.values.toList();
+    if (mounts.isEmpty) return null;
+    return InstallDiskInfo.manual(
+      widget.selectedDevice!,
+      mounts,
+    );
+  }
 
   bool _canSetMountpoint(StoragePartitionInfo? info) {
     if (info == null) return false;

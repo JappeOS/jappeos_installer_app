@@ -38,7 +38,7 @@ class _UpdatesAndSoftwarePageWidget extends StatelessWidget {
               = installProvider.installPlan.copyWith(
             installProprietary: s == CheckboxState.checked,
           ),
-          trailing: const Text('Install recommemded proprietary software'),
+          trailing: const Text('Install recommended proprietary software'),
         ),
         Gap(8 * scaling),
         Checkbox(
@@ -49,7 +49,7 @@ class _UpdatesAndSoftwarePageWidget extends StatelessWidget {
               = installProvider.installPlan.copyWith(
             installRecommendedDrivers: s == CheckboxState.checked,
           ),
-          trailing: const Text('Install recommemded drivers automatically'),
+          trailing: const Text('Install recommended drivers automatically'),
         ),
       ],
     );
