@@ -3,6 +3,7 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../disk_operation_stringifier.dart';
 import '../provider/install_provider.dart';
+import '../provider/page_provider.dart';
 import '../widgets/page_loading_indicator.dart';
 import 'installer_page.dart';
 
@@ -15,7 +16,6 @@ class SummaryPage extends InstallerPage {
   }
 }
 
-// TODO: Validate before moving to next page.
 class _SummaryPageWidget extends StatefulWidget {
   final int pageIndex;
 
@@ -26,7 +26,10 @@ class _SummaryPageWidget extends StatefulWidget {
 }
 
 class _SummaryPageWidgetState extends State<_SummaryPageWidget> {
+  late PageProvider _pageProvider;
   Future? _createPlanFuture;
+  bool _done = false;
+  bool _error = false;
 
   @override
   void initState() {
@@ -53,6 +56,28 @@ class _SummaryPageWidgetState extends State<_SummaryPageWidget> {
       );
       _createPlanFuture = installProvider.createPlan();
     });
+
+    final nav = context.read<PageProvider>();
+    nav.registerFormHandler(widget.pageIndex, _handleSubmit);
+  }
+
+  Future<bool> _handleSubmit() async {
+    if (!_done || _error) {
+      return false;
+    }
+    return true;
+  }
+
+  @override
+  void didChangeDependencies() {
+    _pageProvider = context.read<PageProvider>();
+    super.didChangeDependencies();
+  }
+
+  @override
+  void dispose() {
+    _pageProvider.unregisterFormHandler(widget.pageIndex);
+    super.dispose();
   }
 
   @override
@@ -60,10 +85,12 @@ class _SummaryPageWidgetState extends State<_SummaryPageWidget> {
     final scaling = Theme.of(context).scaling;
     return FutureBuilder(
       future: _createPlanFuture,
-      builder: (context, snaphsot) {
-        if (snaphsot.connectionState != ConnectionState.done) {
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: PageLoadingIndicator());
         }
+        if (snapshot.hasError) _error = true;
+        _done = true;
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -72,8 +99,8 @@ class _SummaryPageWidgetState extends State<_SummaryPageWidget> {
             Gap(2 * scaling),
             const Text("Here's a summary of your choices. You can not go back and change them after this step.").muted(),
             Gap(8 * scaling),
-            if (snaphsot.hasError)
-              ..._buildError(snaphsot)
+            if (snapshot.hasError)
+              ..._buildError(snapshot)
             else
               ..._buildSuccess(),
           ],
