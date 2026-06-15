@@ -266,7 +266,7 @@ packages:
     description:
       path: "."
       ref: dev
-      resolved-ref: "00b76a132df761b5c3e963be4649add486e8a5c6"
+      resolved-ref: cd52e6314ee113516875ad72b589d84938565939
       url: "https://github.com/JappeOS/jappeos_services.git"
     source: git
     version: "1.0.0+1"

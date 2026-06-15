@@ -1,17 +1,21 @@
-import 'package:jappeos_installer/pages/summary_page.dart';
-import 'package:jappeos_installer/pages/user_setup_page.dart';
+import 'dart:ui';
+
+import 'package:flutter/services.dart';
 import 'package:jappeos_services/jappeos_services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:widget_and_text_animator/widget_and_text_animator.dart';
 
+import 'pages/install_progress_page.dart';
 import 'pages/installation_type_page.dart';
 import 'pages/installer_page.dart';
 import 'pages/keyboard_layout_page.dart';
 import 'pages/partitioning_page.dart';
+import 'pages/summary_page.dart';
 import 'pages/timezone_page.dart';
 import 'pages/updates_and_software_page.dart';
+import 'pages/user_setup_page.dart';
 import 'pages/welcome_page.dart';
 import 'provider/install_provider.dart';
 import 'provider/page_provider.dart';
@@ -75,6 +79,7 @@ class _AppMainState extends State<_AppMain> {
       InstallationTypePage(),
       PartitioningPage(),
       SummaryPage(),
+      InstallProgressPage(),
     ];
   }
 
@@ -125,10 +130,17 @@ class _AppMainState extends State<_AppMain> {
               ),
               const Spacer(flex: 1),
               PrimaryButton(
-                onPressed: nav.currentPage < _pages.length - 1 &&
-                    nav.allowAnyNavigation &&
-                    !nav.pageChanging ? () => nav.nextPage() : null,
-                child: const Text("Next"),
+                onPressed: () {
+                  if (nav.allowAnyNavigation &&
+                      !nav.pageChanging) {
+                    if (nav.currentPage < _pages.length - 1) {
+                      return () => nav.nextPage();
+                    }
+                    return () => ServicesBinding.instance.exitApplication(AppExitType.required);
+                  }
+                  return null;
+                } (),
+                child: Text(nav.currentPage < _pages.length - 1 ? "Next" : "Finish"),
               ),
               Gap(16 * Theme.of(context).scaling),
             ],
