@@ -17,6 +17,9 @@ String stringifyDiskOperations(StorageInfo storageInfo, InstallDiskInfo diskInfo
 String diskToString(StorageDeviceInfo? dev)
     => "${dev?.device ?? "<unknown device>"} (${sizeMiBToString(dev?.sizeMiB)} MiB)";
 
+String partitionToString(StoragePartitionInfo? part)
+    => "${part?.device ?? "<unknown device>"} (${sizeMiBToString(part?.sizeMiB)} MiB${part?.filesystem != null ? part?.filesystem.name : ""})";
+
 String sizeMiBToString([int? sizeMiB = 0, bool remaining = false]) {
   if (remaining) {
     return "(remaining size)";
