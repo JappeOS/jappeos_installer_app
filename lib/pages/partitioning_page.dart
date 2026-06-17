@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:jappeos_installer/pages/installer_page.dart';
 import 'package:jappeos_installer/widgets/partition_list.dart';
 import 'package:jappeos_services/jappeos_services.dart';
@@ -10,8 +11,13 @@ import '../provider/page_provider.dart';
 import '../widgets/partition_view.dart';
 
 const _kStorageMountpointNone = "<none>";
+const _kValidStorageFilesystems = [
+  StorageFilesystemType.fat32,
+  StorageFilesystemType.ext4,
+  StorageFilesystemType.btrfs,
+  StorageFilesystemType.xfs,
+];
 
-// TODO: Custom partitioning
 class PartitioningPage extends InstallerPage {
   PartitioningPage() : super('Partitioning');
 
@@ -80,6 +86,7 @@ class _PartitioningPageWidgetState extends State<_PartitioningPageWidget> {
 
   Widget _buildErase(InstallProvider installProvider) {
     return _ErasePage(
+      pageIndex: widget.pageIndex,
       selectedDevice: _selectedDevice,
       onDeviceSelected: (p0) => _handleDeviceSelected(installProvider, p0),
     );
@@ -117,10 +124,12 @@ class _PartitioningPageWidgetState extends State<_PartitioningPageWidget> {
 }
 
 class _ErasePage extends StatefulWidget {
+  final int pageIndex;
   final String? selectedDevice;
   final void Function(String?) onDeviceSelected;
 
   const _ErasePage({
+    required this.pageIndex,
     required this.selectedDevice,
     required this.onDeviceSelected,
   });
@@ -130,6 +139,35 @@ class _ErasePage extends StatefulWidget {
 }
 
 class _ErasePageState extends State<_ErasePage> {
+  late PageProvider _pageProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    final nav = context.read<PageProvider>();
+    nav.registerFormHandler(widget.pageIndex, _handleSubmit);
+  }
+
+  Future<bool> _handleSubmit() async {
+    final installProvider = context.read<InstallProvider>();
+    installProvider.installPlan = installProvider.installPlan.copyWith(
+      disk: _createDiskInfo(),
+    );
+    return true;
+  }
+
+  @override
+  void didChangeDependencies() {
+    _pageProvider = context.read<PageProvider>();
+    super.didChangeDependencies();
+  }
+
+  @override
+  void dispose() {
+    _pageProvider.unregisterFormHandler(widget.pageIndex);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final installProvider = context.watch<InstallProvider>();
@@ -158,7 +196,7 @@ class _ErasePageState extends State<_ErasePage> {
               popup: SelectPopup(
                 items: SelectItemList(
                   children: [
-                    for (final dev in (devices.entries))
+                    for (final dev in devices.entries)
                       SelectItemButton(
                         value: dev.key,
                         child: Text(dev.key),
@@ -175,6 +213,12 @@ class _ErasePageState extends State<_ErasePage> {
           ],
         ],
       ),
+    );
+  }
+
+  InstallDiskInfo? _createDiskInfo() {
+    return InstallDiskInfo.erase(
+      widget.selectedDevice!,
     );
   }
 }
@@ -204,7 +248,8 @@ class _ManualPageState extends State<_ManualPage> {
     super.initState();
 
     final installProvider = context.read<InstallProvider>();
-    if (installProvider.installPlan.disk.mode == InstallDiskMode.manual) {
+    if (installProvider.installPlan.disk.mode == InstallDiskMode.manual &&
+        widget.selectedDevice == installProvider.installPlan.disk.device) {
       for (final mnt in installProvider.installPlan.disk.mounts) {
         _mounts[mnt.partition] = mnt;
       }
@@ -375,8 +420,9 @@ class _SetMountpointDialogState extends State<_SetMountpointDialog> {
       title: const Text("Set Mountpoint"),
       content: Column(
         spacing: 8 * scaling,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Set the mountpoint of ${widget.partition.device} (${widget.partition.sizeMiB} - ${widget.partition.filesystem.name})"),
+          Text("Set the mountpoint of ${partitionToString(widget.partition)}"),
           SizedBox(
             width: 250,
             child: Select<String>(
@@ -442,6 +488,7 @@ class _CustomPage extends StatefulWidget {
 
 class _CustomPageState extends State<_CustomPage> {
   late PageProvider _pageProvider;
+  StorageInfo? _originalStorageInfo;
   StoragePartitionInfo? _selectedPartition;
   final List<InstallDiskOperationInfo> _operations = [];
   late final List<StoragePartitionInfo> _appliedPartitions;
@@ -451,11 +498,14 @@ class _CustomPageState extends State<_CustomPage> {
     super.initState();
 
     final installProvider = context.read<InstallProvider>();
+    _originalStorageInfo = installProvider.storageInfo?.withoutMountpoints();
     _appliedPartitions
-        = installProvider.storageInfo?.devices[widget.selectedDevice]?.partitions ?? [];
-    if (installProvider.installPlan.disk.mode == InstallDiskMode.custom) {
+        = _originalStorageInfo?.devices[widget.selectedDevice]?.partitions.withoutMountpoints() ?? [];
+    if (installProvider.installPlan.disk.mode == InstallDiskMode.custom &&
+        widget.selectedDevice == installProvider.installPlan.disk.device) {
       for (final op in installProvider.installPlan.disk.operations) {
-        _operations.add(op);
+        _applyOperation(op);
+        //_operations.add(op);
       }
     }
 
@@ -463,21 +513,63 @@ class _CustomPageState extends State<_CustomPage> {
     nav.registerFormHandler(widget.pageIndex, _handleSubmit);
   }
 
+  void _applyOperation(InstallDiskOperationInfo op) {
+    switch (op.type) {
+      case InstallDiskOperationType.create:
+        final createOp = op as InstallDiskOperationCreateInfo;
+        _createPart(
+          _appliedPartitions.firstWhere((p) => p.device == createOp.region),
+          op.sizeMiB,
+          op.remaining,
+          op.mountPoint,
+          op.filesystem,
+        );
+      case InstallDiskOperationType.remove:
+        final removeOp = op as InstallDiskOperationRemoveInfo;
+        _deletePart(
+          _appliedPartitions.firstWhere((p) => p.device == removeOp.partition),
+        );
+      case InstallDiskOperationType.resize:
+        final resizeOp = op as InstallDiskOperationResizeInfo;
+        final part = _appliedPartitions.firstWhere((p) => p.device == resizeOp.partition);
+        var nextPart = _appliedPartitions.elementAtOrNull(_appliedPartitions.indexOf(part) + 1);
+        if (nextPart != null && !nextPart.isFreeSpace()) {
+          nextPart = null;
+        }
+        _resizePart(
+          part,
+          nextPart,
+          resizeOp.sizeMiB,
+          resizeOp.remaining,
+        );
+      case InstallDiskOperationType.setFilesystem:
+        final setFsOp = op as InstallDiskOperationSetFilesystemInfo;
+        _setPartFilesystem(
+          _appliedPartitions.firstWhere((p) => p.device == setFsOp.partition),
+          setFsOp.filesystem,
+        );
+      case InstallDiskOperationType.setMountpoint:
+        final setMntOp = op as InstallDiskOperationSetMountpointInfo;
+        _setPartMountpoint(
+          _appliedPartitions.firstWhere((p) => p.device == setMntOp.partition),
+          setMntOp.mountPoint,
+        );
+      // ignore: unreachable_switch_default
+      default: break;
+    }
+  }
+
   Future<bool> _handleSubmit() async {
     bool bootFound = false;
     bool rootFound = false;
     bool duplicates = false;
-    for (final op in _operations) {
-      if (op.type != InstallDiskOperationType.setMountpoint) {
-        continue;
-      }
 
-      final setMntOp = op as InstallDiskOperationSetMountpointInfo;
-      if (setMntOp.mountPoint == kStorageMountpointBoot) {
+    for (final mnt in _getMountpoints().entries) {
+      if (mnt.value == kStorageMountpointBoot) {
         if (bootFound) duplicates = true;
         bootFound = true;
       }
-      if (setMntOp.mountPoint == kStorageMountpointRoot) {
+      if (mnt.value == kStorageMountpointRoot) {
         if (rootFound) duplicates = true;
         rootFound = true;
       }
@@ -510,9 +602,9 @@ class _CustomPageState extends State<_CustomPage> {
 
   @override
   Widget build(BuildContext context) {
-    //final installProvider = context.watch<InstallProvider>();
     return _PartitioningLayout(
       storageInfo: _createAppliedStorageInfo(),
+      originalStorageInfo: _originalStorageInfo,
       mounts: _getMountpoints(),
       selectedDevice: widget.selectedDevice,
       onDeviceSelected: widget.onDeviceSelected,
@@ -632,49 +724,23 @@ class _CustomPageState extends State<_CustomPage> {
     final installProvider = context.read<InstallProvider>();
     var map = installProvider.storageInfo?.devices;
     if (map == null) return null;
+    map = Map.of(map);
     var currentDev = map[widget.selectedDevice];
     if (currentDev == null) return null;
-    map[widget.selectedDevice!] = StorageDeviceInfo(
-      device: currentDev.device,
-      sizeMiB: currentDev.sizeMiB,
-      partitions: _appliedPartitions,
-    );
+    map[widget.selectedDevice!]
+        = currentDev.copyWith(partitions: _appliedPartitions);
     return StorageInfo(devices: map);
   }
 
   Map<String, String> _getMountpoints() {
     Map<String, String> ret = {};
-    for (final op in _operations) {
-      if (op.type != InstallDiskOperationType.setMountpoint) {
-        continue;
-      }
-
-      final setMntOp = op as InstallDiskOperationSetMountpointInfo;
-      if (setMntOp.mountPoint == kStorageMountpointBoot ||
-          setMntOp.mountPoint == kStorageMountpointRoot) {
-        ret[setMntOp.partition] = setMntOp.mountPoint;
+    for (final part in _appliedPartitions) {
+      if (part.mountPoint == kStorageMountpointBoot ||
+          part.mountPoint == kStorageMountpointRoot) {
+        ret[part.device] = part.mountPoint;
       }
     }
     return ret;
-  }
-
-  // TODO: Store local copy of disks and modify that instead, to avoid extra
-  // weird code!!!
-  StorageFilesystemType _getCurrentFilesystem(StoragePartitionInfo part) {
-    StorageFilesystemType fs = part.filesystem;
-    for (final op in _operations) {
-      if (op.type != InstallDiskOperationType.setFilesystem) {
-        continue;
-      }
-
-      final setFsOp = op as InstallDiskOperationSetFilesystemInfo;
-      if (setFsOp.partition != part.device) {
-        continue;
-      }
-
-      fs = setFsOp.filesystem;
-    }
-    return fs;
   }
 
   bool _canCreate(StoragePartitionInfo? info) {
@@ -689,16 +755,12 @@ class _CustomPageState extends State<_CustomPage> {
         partition: part,
       ),
     ).then((v) {
-      if (v is! (int?, String?, StorageFilesystemType?)) return;
-      if (v.$1 != null) {
-        _createPart(part, v.$1!);
-      }
-      if (v.$2 != null) {
-        _setPartMountpoint(part, v.$2!);
-      }
-      if (v.$3 != null) {
-        _setPartFilesystem(part, v.$3!);
-      }
+      if (v is! (int?, bool, String?, StorageFilesystemType)) return;
+      assert(
+        v.$1 != null || v.$2,
+        "sizeMiB needs to be specified if remaining is false",
+      );
+      _createPart(part, v.$1, v.$2, v.$3 ?? "", v.$4);
     });
   }
 
@@ -709,7 +771,31 @@ class _CustomPageState extends State<_CustomPage> {
   }
 
   void _resize(StoragePartitionInfo part) {
-    throw UnimplementedError();
+    final nextIndex = _appliedPartitions.indexOf(part) + 1;
+    var nextPart = nextIndex > _appliedPartitions.length - 1
+        ? null
+        : _appliedPartitions[nextIndex];
+
+    if (nextPart != null && !nextPart.isFreeSpace()) {
+      nextPart = null;
+    }
+
+    final nextPartSize = nextPart?.sizeMiB ?? 0;
+
+    showDialog(
+      context: context,
+      builder: (context) => _ResizePartitionDialog(
+        partition: part,
+        trailingSizeMiB: nextPartSize,
+      ),
+    ).then((v) {
+      if (v is! (int?, bool)) return;
+      assert(
+        v.$1 != null || v.$2,
+        "sizeMiB needs to be specified if remaining is false",
+      );
+      _resizePart(part, nextPart, v.$1, v.$2);
+    });
   }
 
   bool _canEditData(StoragePartitionInfo? info) {
@@ -742,21 +828,147 @@ class _CustomPageState extends State<_CustomPage> {
   }
 
   void _delete(StoragePartitionInfo part) {
-    throw UnimplementedError();
+    showDialog(
+      context: context,
+      builder: (context) => _DeletePartitionDialog(
+        partition: part,
+      ),
+    ).then((v) {
+      if (v is! bool || !v) return;
+      _deletePart(part);
+    });
   }
 
-  void _createPart(StoragePartitionInfo part, int sizeMiB) {
+  void _createPart(
+    StoragePartitionInfo freeSpace,
+    int? sizeMiB,
+    bool remaining,
+    String mountpoint,
+    StorageFilesystemType filesystem,
+  ) {
+    if ((sizeMiB == null && !remaining) ||
+        (sizeMiB != null && sizeMiB > freeSpace.sizeMiB)) {
+      return;
+    }
 
+    final finalMountpoint = mountpoint == _kStorageMountpointNone ? "" : mountpoint;
+    final createOp = InstallDiskOperationCreateInfo(
+      region: freeSpace.device,
+      sizeMiB: sizeMiB ?? 0,
+      remaining: remaining,
+      filesystem: filesystem,
+      mountPoint: finalMountpoint,
+    );
+
+    final index = _appliedPartitions.indexOf(freeSpace);
+
+    /*final index = _appliedPartitions.indexWhere(
+      (p) => p.device == part.device,
+    );*/
+
+    /*_operations.removeWhere(
+      (op) => op is InstallDiskOperationCreateInfo &&
+      op.region == part.device
+    );*/
+
+    if (index == -1) {
+      //setState(() {});
+      return;
+    }
+
+    _operations.add(createOp);
+
+    final finalSizeMiB = remaining ? freeSpace.sizeMiB : sizeMiB!;
+    final freeSizeMiB = freeSpace.sizeMiB - finalSizeMiB;
+    if (freeSizeMiB == 0) {
+      _appliedPartitions.removeAt(index);
+    } else {
+      _appliedPartitions[index] = freeSpace.copyWith(
+        sizeMiB: freeSizeMiB,
+      );
+    }
+
+    final newPart = StoragePartitionInfo(
+      device: "",
+      filesystem: filesystem,
+      sizeMiB: finalSizeMiB,
+      mountPoint: finalMountpoint,
+    );
+    _appliedPartitions.insert(index, newPart);
+    _removePartAdjacentSpaces();
+    _createPartitionNames();
+
+    setState(() {});
   }
 
-  void _setPartMountpoint(StoragePartitionInfo part, String mountpoint) {
-    if (mountpoint != kStorageMountpointBoot &&
-        mountpoint != kStorageMountpointRoot &&
-        mountpoint != _kStorageMountpointNone) {return;}
+  void _resizePart(
+    StoragePartitionInfo part,
+    StoragePartitionInfo? nextPart,
+    int? sizeMiB,
+    bool remaining,
+  ) {
+    final availableTrailingSpace = nextPart?.sizeMiB ?? 0;
+    final maxSize = part.sizeMiB + availableTrailingSpace;
+    if ((sizeMiB == null && !remaining) ||
+        (!(nextPart?.isFreeSpace() ?? true)) ||
+        (sizeMiB != null && sizeMiB > maxSize) ||
+        (sizeMiB == part.sizeMiB)) {
+      return;
+    }
 
-    final mountOp = InstallDiskOperationSetMountpointInfo(
+    final resizeOp = InstallDiskOperationResizeInfo(
       partition: part.device,
-      mountPoint: mountpoint,
+      sizeMiB: sizeMiB ?? 0,
+      remaining: remaining,
+    );
+
+    final index = _appliedPartitions.indexOf(part);
+    if (index == -1) {
+      return;
+    }
+
+    final nextIndex = index + 1;
+
+    final resizeSize = remaining ? maxSize : sizeMiB!;
+    final addedSpace = resizeSize - part.sizeMiB;
+    if (resizeSize > part.sizeMiB && addedSpace > availableTrailingSpace) {
+      return;
+    }
+
+    _operations.add(resizeOp);
+
+    _appliedPartitions[index] = part.copyWith(
+      sizeMiB: resizeSize,
+    );
+
+    if (addedSpace == availableTrailingSpace) {
+      if (nextPart != null) {
+        _appliedPartitions.removeAt(nextIndex);
+      }
+    } else if (addedSpace > 0 && nextPart != null) {
+      _appliedPartitions[nextIndex] = nextPart.copyWith(
+        sizeMiB: nextPart.sizeMiB - addedSpace,
+      );
+    }
+
+    if (addedSpace < 0) {
+      final newPart = StoragePartitionInfo(
+        device: "",
+        filesystem: StorageFilesystemType.freeSpace,
+        sizeMiB: -addedSpace,
+        mountPoint: "",
+      );
+      _appliedPartitions.insert(nextIndex, newPart);
+    }
+
+    _removePartAdjacentSpaces();
+    _createPartitionNames();
+    setState(() {});
+  }
+
+  void _deletePart(StoragePartitionInfo part) {
+    final deleteOp = InstallDiskOperationRemoveInfo(
+      partition: part.device,
     );
 
     final index = _appliedPartitions.indexWhere(
@@ -764,7 +976,7 @@ class _CustomPageState extends State<_CustomPage> {
     );
 
     final existingOps = _operations.where(
-      (op) => op is InstallDiskOperationSetMountpointInfo &&
+      (op) => op is InstallDiskOperationRemoveInfo &&
       op.partition == part.device
     );
 
@@ -777,22 +989,86 @@ class _CustomPageState extends State<_CustomPage> {
       return;
     }
 
+    _operations.add(deleteOp);
+    final newPart = StoragePartitionInfo(
+      device: "",
+      filesystem: StorageFilesystemType.freeSpace,
+      sizeMiB: part.sizeMiB,
+      mountPoint: "",
+    );
+    _appliedPartitions[index] = newPart;
+    _removePartAdjacentSpaces();
+    _createPartitionNames();
+
+    setState(() {});
+  }
+
+  void _setPartMountpoint(StoragePartitionInfo part, String mountpoint) {
+    if (mountpoint != kStorageMountpointBoot &&
+        mountpoint != kStorageMountpointRoot &&
+        mountpoint != _kStorageMountpointNone) {return;}
+
+    final finalMountpoint = mountpoint == _kStorageMountpointNone ? "" : mountpoint;
+    final mountOp = InstallDiskOperationSetMountpointInfo(
+      partition: part.device,
+      mountPoint: finalMountpoint,
+    );
+
+    final index = _appliedPartitions.indexWhere(
+      (p) => p.device == part.device,
+    );
+
+    _operations.removeWhere(
+      (op) => op is InstallDiskOperationSetMountpointInfo &&
+      op.partition == part.device
+    );
+
+    if (index == -1) {
+      setState(() {});
+      return;
+    }
+
+    final createOp = _operations.firstWhereOrNull(
+      (op) => op is InstallDiskOperationCreateInfo &&
+      op.region == part.device &&
+      op.mountPoint == part.mountPoint
+    ) as InstallDiskOperationCreateInfo?;
+
+    // TODO: FIX THIS
+    // If partition exists as a result of a create-operation, we can simply
+    // modify the original create-operation to change the mountpoint.
+    if (createOp != null) {
+      final createOpIndex = _operations.indexOf(createOp);
+      _operations[createOpIndex] = InstallDiskOperationCreateInfo(
+        region: createOp.region,
+        sizeMiB: createOp.sizeMiB,
+        remaining: createOp.remaining,
+        filesystem: createOp.filesystem,
+        mountPoint: finalMountpoint,
+      );
+      _appliedPartitions[index] = part.copyWith(
+        mountPoint: finalMountpoint,
+      );
+
+      setState(() {});
+      return;
+    }
+
     if (mountpoint != _kStorageMountpointNone) {
       _operations.add(mountOp);
     }
 
     _appliedPartitions[index] = part.copyWith(
-      mountPoint: mountpoint == _kStorageMountpointNone ? "" : mountpoint,
+      mountPoint: finalMountpoint,
     );
 
     setState(() {});
   }
 
   void _setPartFilesystem(StoragePartitionInfo part, StorageFilesystemType fs) {
-    if (fs != StorageFilesystemType.fat32 &&
-        fs != StorageFilesystemType.ext4 &&
-        fs != StorageFilesystemType.btrfs &&
-        fs != StorageFilesystemType.xfs) {return;}
+    if (!_kValidStorageFilesystems.contains(fs)) {
+      return;
+    }
 
     final fsOp = InstallDiskOperationSetFilesystemInfo(
       partition: part.device,
@@ -803,16 +1079,38 @@ class _CustomPageState extends State<_CustomPage> {
       (p) => p.device == part.device,
     );
 
-    final existingOps = _operations.where(
+    _operations.removeWhere(
       (op) => op is InstallDiskOperationSetFilesystemInfo &&
       op.partition == part.device
     );
 
-    for (final op in existingOps) {
-      _operations.remove(op);
+    if (index == -1) {
+      setState(() {});
+      return;
     }
 
-    if (index == -1) {
+    final createOp = _operations.firstWhereOrNull(
+      (op) => op is InstallDiskOperationCreateInfo &&
+      op.region == part.device &&
+      op.filesystem == part.filesystem
+    ) as InstallDiskOperationCreateInfo?;
+
+    // TODO: FIX THIS
+    // If partition exists as a result of a create-operation, we can simply
+    // modify the original create-operation to change the filesystem.
+    if (createOp != null) {
+      final createOpIndex = _operations.indexOf(createOp);
+      _operations[createOpIndex] = InstallDiskOperationCreateInfo(
+        region: createOp.region,
+        sizeMiB: createOp.sizeMiB,
+        remaining: createOp.remaining,
+        filesystem: fs,
+        mountPoint: createOp.mountPoint,
+      );
+      _appliedPartitions[index] = part.copyWith(
+        filesystem: fs,
+      );
+
       setState(() {});
       return;
     }
@@ -823,6 +1121,41 @@ class _CustomPageState extends State<_CustomPage> {
     );
 
     setState(() {});
+  }
+
+  void _removePartAdjacentSpaces() {
+    for (int i = 1; i < _appliedPartitions.length;) {
+      if (_appliedPartitions[i - 1].isFreeSpace() &&
+          _appliedPartitions[i].isFreeSpace()) {
+        _appliedPartitions[i - 1] = _appliedPartitions[i - 1].copyWith(
+          sizeMiB: _appliedPartitions[i - 1].sizeMiB +
+              _appliedPartitions[i].sizeMiB,
+        );
+        _appliedPartitions.removeAt(i);
+      } else {
+        ++i;
+      }
+    }
+  }
+
+  void _createPartitionNames() {
+    int freeCount = 0;
+    for (int i = 0; i < _appliedPartitions.length; i++) {
+      final current = _appliedPartitions[i];
+      if (current.isFreeSpace()) {
+        freeCount++;
+      }
+      _appliedPartitions[i] = current.copyWith(
+        device: _createName(
+          current.isFreeSpace() ? freeCount : i + 1 - freeCount,
+          current.isFreeSpace(),
+        ),
+      );
+    }
+  }
+
+  String _createName(int index, bool free) {
+    return "${widget.selectedDevice}${free ? "#free$index" : "$index"}";
   }
 }
 
@@ -839,6 +1172,7 @@ class _CreatePartitionDialogState extends State<_CreatePartitionDialog> {
   final FormController _formController = FormController();
   late final TextEditingController _sizeFieldController;
   late int _sizeMiB;
+  bool _useRemaining = false;
   String? _selectedMountpoint;
   late StorageFilesystemType _selectedFilesystem;
 
@@ -846,7 +1180,7 @@ class _CreatePartitionDialogState extends State<_CreatePartitionDialog> {
   void initState() {
     super.initState();
     _sizeMiB = widget.partition.sizeMiB;
-    _selectedFilesystem = widget.partition.filesystem;
+    _selectedFilesystem = StorageFilesystemType.btrfs;
     _sizeFieldController = TextEditingController(text: _sizeMiB.toString());
   }
 
@@ -864,6 +1198,7 @@ class _CreatePartitionDialogState extends State<_CreatePartitionDialog> {
       title: const Text("Create Partition"),
       content: Column(
         spacing: 8 * scaling,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text("Create partition to ${partitionToString(widget.partition)}"),
           ConstrainedBox(
@@ -876,8 +1211,10 @@ class _CreatePartitionDialogState extends State<_CreatePartitionDialog> {
                   label: const Text('Size (MiB)'),
                   child: TextField(
                     controller: _sizeFieldController,
-                    onEditingComplete: () => _validateTextField(),
-                    onSubmitted: (_) => _validateTextField(),
+                    enabled: !_useRemaining,
+                    onEditingComplete: () => _onTextFieldEdited(),
+                    onSubmitted: (_) => _onTextFieldEdited(),
+                    onChanged: (v) => setState(() => _sizeMiB = int.tryParse(v) ?? 0),
                     placeholder: const Text('Provide a valid size'),
                     features: const [
                       InputFeature.spinner(),
@@ -885,6 +1222,21 @@ class _CreatePartitionDialogState extends State<_CreatePartitionDialog> {
                     submitFormatters: [
                       TextInputFormatters.mathExpression(),
                     ],
+                  ),
+                ),
+                FormField<CheckboxState>(
+                  key: const FormKey(#useRemaining),
+                  label: const Text('Use remaining space'),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Checkbox(
+                      state: _useRemaining
+                          ? CheckboxState.checked
+                          : CheckboxState.unchecked,
+                      onChanged: (value) {
+                        setState(() => _useRemaining = value == CheckboxState.checked);
+                      },
+                    ),
                   ),
                 ),
                 FormField<String>(
@@ -901,10 +1253,11 @@ class _CreatePartitionDialogState extends State<_CreatePartitionDialog> {
                     popup: SelectPopup(
                       items: SelectItemList(
                         children: [
-                          _filesystemSelectItem(StorageFilesystemType.fat32),
-                          _filesystemSelectItem(StorageFilesystemType.ext4),
-                          _filesystemSelectItem(StorageFilesystemType.btrfs),
-                          _filesystemSelectItem(StorageFilesystemType.xfs),
+                          for (final fs in _kValidStorageFilesystems)
+                            SelectItemButton(
+                              value: fs,
+                              child: Text(fs.name),
+                            ),
                         ],
                       ),
                     ),
@@ -951,48 +1304,200 @@ class _CreatePartitionDialogState extends State<_CreatePartitionDialog> {
           child: const Text("Cancel"),
         ),
         PrimaryButton(
-          onPressed: _selectedMountpoint == kStorageMountpointBoot ||
-              _selectedMountpoint == kStorageMountpointRoot ||
-              _selectedMountpoint == _kStorageMountpointNone ||
-              _validateSize(_sizeMiB) != null
-                  ? () => Navigator.pop(
-                    context,
-                    (
-                      _validateSize(_sizeMiB),
-                      _selectedMountpoint,
-                      _selectedFilesystem,
-                    ))
-                  : null,
+          onPressed: () {
+            //_onTextFieldEdited();
+
+            final validatedSize = _validateSize(
+              _useRemaining
+                  ? widget.partition.sizeMiB
+                  : _sizeMiB,
+            );
+
+            if ((_selectedMountpoint == kStorageMountpointBoot ||
+                _selectedMountpoint == kStorageMountpointRoot ||
+                _selectedMountpoint == _kStorageMountpointNone) &&
+                validatedSize != null) {
+              return () => Navigator.pop(
+                context,
+                (
+                  _useRemaining ? null : _validateSize(_sizeMiB),
+                  _useRemaining,
+                  _selectedMountpoint,
+                  _selectedFilesystem,
+                ),
+              );
+            }
+            return null;
+          }(),
           child: const Text("Create"),
         ),
       ],
     );
   }
 
-  SelectItemButton _filesystemSelectItem(StorageFilesystemType fs) =>
-      SelectItemButton(
-        value: fs,
-        child: Text(fs.name),
-      );
-
-  void _validateTextField() {
-    _sizeFieldController.text = _validateSize(int.tryParse(_sizeFieldController.text))?.toString() ?? "";
+  void _onTextFieldEdited() {
+    final value = _validateSize(int.tryParse(_sizeFieldController.text));
+    _sizeFieldController.text = value?.toString() ?? "";
+    if (value != null) {
+      setState(() => _sizeMiB = value);
+    }
   }
 
-  int? _validateSize(int? sizeMiB) {
-    if (sizeMiB == null) return null;
-    int lowerLimit = 1;
-    int upperLimit = widget.partition.sizeMiB;
-    if (_selectedMountpoint == kStorageMountpointBoot) {
-      lowerLimit = 100;
-    } else if (_selectedMountpoint == kStorageMountpointRoot) {
-      lowerLimit = 40960;
-    }
-    if (upperLimit - 1 <= lowerLimit) {
-      return null;
-    }
-    return sizeMiB.clamp(lowerLimit, widget.partition.sizeMiB);
+  int? _validateSize(int? targetSizeMiB) => PartitionUtils.validateSize(
+    partition: widget.partition,
+    targetSizeMiB: targetSizeMiB,
+    targetMountpoint: _selectedMountpoint,
+  );
+}
+
+class _ResizePartitionDialog extends StatefulWidget {
+  final StoragePartitionInfo partition;
+  final int trailingSizeMiB;
+
+  const _ResizePartitionDialog({
+    required this.partition,
+    this.trailingSizeMiB = 0,
+  });
+
+  @override
+  State<_ResizePartitionDialog> createState() => _ResizePartitionDialogState();
+}
+
+class _ResizePartitionDialogState extends State<_ResizePartitionDialog> {
+  final FormController _formController = FormController();
+  late final TextEditingController _sizeFieldController;
+  late final int _maxSizeMiB;
+  late int _sizeMiB;
+  bool _useRemaining = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _maxSizeMiB = widget.partition.sizeMiB + widget.trailingSizeMiB;
+    _sizeMiB = widget.partition.sizeMiB;
+    _sizeFieldController = TextEditingController(text: _sizeMiB.toString());
   }
+
+  @override
+  void dispose() {
+    _formController.dispose();
+    _sizeFieldController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scaling = Theme.of(context).scaling;
+    return AlertDialog(
+      title: const Text("Resize Partition"),
+      content: Column(
+        spacing: 8 * scaling,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Resize ${partitionToString(widget.partition)}"),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Form(
+              controller: _formController,
+              child: FormTableLayout(rows: [
+                FormField<int>(
+                  key: const FormKey(#size),
+                  label: const Text('Current Size (MiB)'),
+                  child: TextField(
+                    enabled: false,
+                    readOnly: true,
+                    initialValue: widget.partition.sizeMiB.toString(),
+                  ),
+                ),
+                FormField<int>(
+                  key: const FormKey(#size),
+                  label: const Text('New Size (MiB)'),
+                  child: TextField(
+                    controller: _sizeFieldController,
+                    enabled: !_useRemaining,
+                    onEditingComplete: () => _onTextFieldEdited(),
+                    onSubmitted: (_) => _onTextFieldEdited(),
+                    onChanged: (v) => setState(() => _sizeMiB = int.tryParse(v) ?? 0),
+                    placeholder: const Text('Provide a valid size'),
+                    features: const [
+                      InputFeature.spinner(),
+                    ],
+                    submitFormatters: [
+                      TextInputFormatters.mathExpression(),
+                    ],
+                  ),
+                ),
+                FormField<CheckboxState>(
+                  key: const FormKey(#useRemaining),
+                  label: const Text('Use remaining space'),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Checkbox(
+                      state: _useRemaining
+                          ? CheckboxState.checked
+                          : CheckboxState.unchecked,
+                      onChanged: (value) {
+                        setState(() => _useRemaining = value == CheckboxState.checked);
+                      },
+                    ),
+                  ),
+                ),
+              ]),
+            ).withPadding(vertical: 16),
+          ),
+          const Alert.destructive(
+            leading: Icon(Icons.warning),
+            title: Text("Warning"),
+            content: Text("Resizing a partition might cause data-loss! Make sure to back-up your data before resizing."),
+          ),
+        ],
+      ),
+      actions: [
+        OutlineButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancel"),
+        ),
+        DestructiveButton(
+          onPressed: () {
+            //_onTextFieldEdited();
+
+            final validatedSize = _validateSize(
+              _useRemaining
+                  ? _maxSizeMiB
+                  : _sizeMiB,
+            );
+
+            if (validatedSize != null) {
+              return () => Navigator.pop(
+                context,
+                (
+                  _useRemaining ? null : _validateSize(_sizeMiB),
+                  _useRemaining,
+                ),
+              );
+            }
+          }(),
+          child: const Text("Resize"),
+        ),
+      ],
+    );
+  }
+
+  void _onTextFieldEdited() {
+    var value = _validateSize(int.tryParse(_sizeFieldController.text));
+    assert(value == null || value <= _maxSizeMiB);
+    _sizeFieldController.text = value?.toString() ?? "";
+    if (value != null) {
+      setState(() => _sizeMiB = value);
+    }
+  }
+
+  int? _validateSize(int? targetSizeMiB) => PartitionUtils.validateSize(
+    partition: widget.partition,
+    targetSizeMiB: targetSizeMiB,
+    maxSizeMiB: _maxSizeMiB,
+    targetMountpoint: widget.partition.mountPoint,
+  );
 }
 
 class _EditPartitionDataDialog extends StatefulWidget {
@@ -1028,6 +1533,7 @@ class _EditPartitionDataDialogState extends State<_EditPartitionDataDialog> {
       title: const Text("Edit Partition"),
       content: Column(
         spacing: 8 * scaling,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text("Edit properties of ${partitionToString(widget.partition)}"),
           ConstrainedBox(
@@ -1049,10 +1555,11 @@ class _EditPartitionDataDialogState extends State<_EditPartitionDataDialog> {
                     popup: SelectPopup(
                       items: SelectItemList(
                         children: [
-                          _filesystemSelectItem(StorageFilesystemType.fat32),
-                          _filesystemSelectItem(StorageFilesystemType.ext4),
-                          _filesystemSelectItem(StorageFilesystemType.btrfs),
-                          _filesystemSelectItem(StorageFilesystemType.xfs),
+                          for (final fs in _kValidStorageFilesystems)
+                            SelectItemButton(
+                              value: fs,
+                              child: Text(fs.name),
+                            ),
                         ],
                       ),
                     ),
@@ -1118,17 +1625,36 @@ class _EditPartitionDataDialogState extends State<_EditPartitionDataDialog> {
     );
   }
 
-  SelectItemButton _filesystemSelectItem(StorageFilesystemType fs) =>
-      SelectItemButton(
-        value: fs,
-        child: Text(fs.name),
-      );
-
   bool _filesystemChanged() => _selectedFilesystem != widget.partition.filesystem;
+}
+
+class _DeletePartitionDialog extends StatelessWidget {
+  final StoragePartitionInfo partition;
+
+  const _DeletePartitionDialog({required this.partition});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Delete Partition"),
+      content: Text("Are you sure you wish to delete all data from ${partitionToString(partition)}?"),
+      actions: [
+        OutlineButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancel"),
+        ),
+        DestructiveButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text("Delete"),
+        ),
+      ],
+    );
+  }
 }
 
 class _PartitioningLayout extends StatelessWidget {
   final StorageInfo? storageInfo;
+  final StorageInfo? originalStorageInfo;
   final Map<String, String> mounts;
   final String? selectedDevice;
   final void Function(String?)? onDeviceSelected;
@@ -1140,6 +1666,7 @@ class _PartitioningLayout extends StatelessWidget {
 
   const _PartitioningLayout({
     required this.storageInfo,
+    this.originalStorageInfo,
     required this.mounts,
     this.selectedDevice,
     this.onDeviceSelected,
@@ -1206,6 +1733,7 @@ class _PartitioningLayout extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
+                  flex: 3,
                   child: PartitionList(
                     device: devices[selectedDevice]!,
                     mounts: mounts,
@@ -1214,7 +1742,10 @@ class _PartitioningLayout extends StatelessWidget {
                     onPartitionContextMenu: onPartitionContextMenu,
                   ),
                 ),
-                _buildOperationsList(context, storageInfo),
+                Expanded(
+                  flex: 1,
+                  child: _buildOperationsList(context, originalStorageInfo ?? storageInfo),
+                ),
               ],
             ),
           ),
@@ -1227,7 +1758,6 @@ class _PartitioningLayout extends StatelessWidget {
     final scaling = Theme.of(context).scaling;
     final diskInfo = onCreateDiskInfo();
     return OutlinedContainer(
-      width: 250,
       padding: EdgeInsets.all(8 * scaling),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1244,6 +1774,42 @@ class _PartitioningLayout extends StatelessWidget {
           ),
         ],
       ),
+    ).constrained(minWidth: 250);
+  }
+}
+
+class PartitionUtils {
+  static int? validateSize({
+    required StoragePartitionInfo partition,
+    int? targetSizeMiB,
+    int? maxSizeMiB,
+    String? targetMountpoint,
+  }) {
+    if (targetSizeMiB == null) return null;
+    int lowerLimit = 1;
+    int upperLimit = maxSizeMiB ?? partition.sizeMiB;
+    if (targetMountpoint == kStorageMountpointBoot) {
+      lowerLimit = 100;
+    } else if (targetMountpoint == kStorageMountpointRoot) {
+      lowerLimit = 40960;
+    }
+    if (upperLimit - 1 <= lowerLimit) {
+      return null;
+    }
+    return targetSizeMiB.clamp(lowerLimit, partition.sizeMiB);
+  }
+}
+
+extension StorageDeviceInfoExt on StorageDeviceInfo {
+  StorageDeviceInfo copyWith({
+    String? device,
+    int? sizeMiB,
+    List<StoragePartitionInfo>? partitions,
+  }) {
+    return StorageDeviceInfo(
+      device: device ?? this.device,
+      sizeMiB: sizeMiB ?? this.sizeMiB,
+      partitions: partitions ?? this.partitions,
     );
   }
 }
@@ -1260,6 +1826,31 @@ extension StoragePartitionInfoExt on StoragePartitionInfo {
       filesystem: filesystem ?? this.filesystem,
       sizeMiB: sizeMiB ?? this.sizeMiB,
       mountPoint: mountPoint ?? this.mountPoint,
+    );
+  }
+}
+
+extension StoragePartitionInfoListExt on List<StoragePartitionInfo> {
+  List<StoragePartitionInfo> withoutMountpoints() {
+    List<StoragePartitionInfo> list = [];
+    for (final si in this) {
+      list.add(si.copyWith(
+        mountPoint: "",
+      ));
+    }
+    return list;
+  }
+}
+
+extension StorageInfoExt on StorageInfo {
+  StorageInfo withoutMountpoints() {
+    return StorageInfo(
+      devices: devices.map(
+        (k, v) => MapEntry(
+          k,
+          v.copyWith(partitions: v.partitions.withoutMountpoints()),
+        ),
+      ),
     );
   }
 }
