@@ -15,10 +15,10 @@ String stringifyDiskOperations(StorageInfo storageInfo, InstallDiskInfo diskInfo
 }
 
 String diskToString(StorageDeviceInfo? dev)
-    => "${dev?.device ?? "<unknown device>"} (${sizeMiBToString(dev?.sizeMiB)} MiB)";
+    => "${dev?.device ?? "<unknown device>"} (${sizeMiBToString(dev?.sizeMiB)})";
 
 String partitionToString(StoragePartitionInfo? part)
-    => "${part?.device ?? "<unknown device>"} (${sizeMiBToString(part?.sizeMiB)} MiB${part?.filesystem != null ? part?.filesystem.name : ""})";
+    => "${part?.device ?? "<unknown device>"} (${sizeMiBToString(part?.sizeMiB)} – ${part?.filesystem != null ? part?.filesystem.name : "<unknown filesystem>"})";
 
 String sizeMiBToString([int? sizeMiB = 0, bool remaining = false]) {
   if (remaining) {
@@ -30,6 +30,8 @@ String sizeMiBToString([int? sizeMiB = 0, bool remaining = false]) {
   return "$sizeMiB MiB";
 }
 
+String _maybeEmpty(String str) =>  str.isEmpty ? "<none>" : str;
+
 String _stringifyEraseMode(StorageInfo storageInfo, InstallDiskInfo diskInfo) {
   final device = storageInfo.devices[diskInfo.device];
   return _item("Erase all data from ${diskToString(device)} and install JappeOS").trimRight();
@@ -38,7 +40,7 @@ String _stringifyEraseMode(StorageInfo storageInfo, InstallDiskInfo diskInfo) {
 String _stringifyManualMode(StorageInfo storageInfo, InstallDiskInfo diskInfo) {
   String str = "";
   for (final mnt in diskInfo.mounts) {
-    str += _item("Mount ${mnt.partition} to ${mnt.mountPoint}");
+    str += _item("Mount ${mnt.partition} to ${_maybeEmpty(mnt.mountPoint)}");
     if (mnt.mountPoint == kStorageMountpointBoot) {
       str += _item("Install boot files to ${mnt.partition}");
     } else if (mnt.mountPoint == kStorageMountpointRoot) {
@@ -57,19 +59,19 @@ String _stringifyCustomMode(StorageInfo storageInfo, InstallDiskInfo diskInfo) {
     switch (op.type) {
       case InstallDiskOperationType.create:
         final createOp = op as InstallDiskOperationCreateInfo;
-        str += _item("Create partition ${createOp.region} of ${createOp.filesystem}${createOp.mountPoint.isNotEmpty ? ", mounted to ${createOp.mountPoint}" : ""}");
+        str += _item("[!] Create a partition to ${createOp.region} with filesystem ${createOp.filesystem.name}${createOp.mountPoint.isNotEmpty ? ", mounted to ${createOp.mountPoint}" : ""}");
         break;
       case InstallDiskOperationType.remove:
         final removeOp = op as InstallDiskOperationRemoveInfo;
         final existingPart
             = device?.partitions.firstWhereOrNull((p) => p.device == op.partition);
-        str += _item("Remove partition ${removeOp.partition}${existingPart != null ? " with size ${sizeMiBToString(existingPart.sizeMiB)} of ${existingPart.filesystem}" : ""}");
+        str += _item("[!] Remove partition ${removeOp.partition}${existingPart != null ? " with size ${sizeMiBToString(existingPart.sizeMiB)} and filesystem ${existingPart.filesystem.name}" : ""}");
         break;
       case InstallDiskOperationType.resize:
         final resizeOp = op as InstallDiskOperationResizeInfo;
         final existingPart
             = device?.partitions.firstWhereOrNull((p) => p.device == op.partition);
-        str += _item("Resize partition ${resizeOp.partition} from ${sizeMiBToString(existingPart?.sizeMiB)} to ${sizeMiBToString(resizeOp.sizeMiB, resizeOp.remaining)}");
+        str += _item("[!] Resize partition ${resizeOp.partition} from ${sizeMiBToString(existingPart?.sizeMiB)} to ${sizeMiBToString(resizeOp.sizeMiB, resizeOp.remaining)}");
       case InstallDiskOperationType.setFilesystem:
         final setFsOp = op as InstallDiskOperationSetFilesystemInfo;
         final existingPart
@@ -79,7 +81,9 @@ String _stringifyCustomMode(StorageInfo storageInfo, InstallDiskInfo diskInfo) {
         final setMntOp = op as InstallDiskOperationSetMountpointInfo;
         final existingPart
             = device?.partitions.firstWhereOrNull((p) => p.device == op.partition);
-        str += _item("Change mountpoint of partition ${setMntOp.partition} from ${existingPart?.mountPoint ?? "<unknown mountpoint>"} to ${setMntOp.mountPoint}");
+
+        var strSourceMountpoint = _maybeEmpty(existingPart?.mountPoint ?? "<unknown mountpoint>");
+        str += _item("Change mountpoint of partition ${setMntOp.partition} from $strSourceMountpoint to ${_maybeEmpty(setMntOp.mountPoint)}");
       // ignore: unreachable_switch_default
       default: break;
     }
