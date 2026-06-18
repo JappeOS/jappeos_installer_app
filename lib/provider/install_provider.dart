@@ -36,7 +36,7 @@ class InstallProvider extends ChangeNotifier {
             device: "/dev/sda1",
             filesystem: StorageFilesystemType.fat32,
             sizeMiB: 159,
-            mountPoint: "/boot/efi",
+            mountPoint: "/boot",
           ),
           StoragePartitionInfo(
             device: "/dev/sda2",

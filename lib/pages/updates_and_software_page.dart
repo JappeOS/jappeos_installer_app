@@ -1,8 +1,10 @@
-import 'package:jappeos_installer/pages/installer_page.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../provider/install_provider.dart';
+import '../widgets/centered_page_content.dart';
+import '../widgets/page_title.dart';
+import 'installer_page.dart';
 
 class UpdatesAndSoftwarePage extends InstallerPage {
   UpdatesAndSoftwarePage() : super('Updates & Software');
@@ -22,36 +24,37 @@ class _UpdatesAndSoftwarePageWidget extends StatelessWidget {
     final installProprietary = installProvider.installPlan.installProprietary;
     final installRecommendedDrivers = installProvider.installPlan.installRecommendedDrivers;
     final scaling = Theme.of(context).scaling;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text("Updates & Software").h3(),
-        Gap(2 * scaling),
-        const Text("Choose you preferred settings for installing software, or keep recommended settings.").muted(),
-        Gap(8 * scaling),
-        Checkbox(
-          state: installProprietary
-              ? CheckboxState.checked
-              : CheckboxState.unchecked,
-          onChanged: (s) => installProvider.installPlan
-              = installProvider.installPlan.copyWith(
-            installProprietary: s == CheckboxState.checked,
+    return Expanded(
+      child: CenteredPageContent(
+        children: [
+          const PageTitle(
+            title: "Updates & Software",
+            subtitle: "Choose your preferred settings for installing software, or keep recommended settings.",
+            alignment: CrossAxisAlignment.center,
           ),
-          trailing: const Text('Install recommended proprietary software'),
-        ),
-        Gap(8 * scaling),
-        Checkbox(
-          state: installRecommendedDrivers
-              ? CheckboxState.checked
-              : CheckboxState.unchecked,
-          onChanged: (s) => installProvider.installPlan
-              = installProvider.installPlan.copyWith(
-            installRecommendedDrivers: s == CheckboxState.checked,
+          Checkbox(
+            state: installProprietary
+                ? CheckboxState.checked
+                : CheckboxState.unchecked,
+            onChanged: (s) => installProvider.installPlan
+                = installProvider.installPlan.copyWith(
+              installProprietary: s == CheckboxState.checked,
+            ),
+            trailing: const Text('Install recommended proprietary software'),
           ),
-          trailing: const Text('Install recommended drivers automatically'),
-        ),
-      ],
+          Gap(8 * scaling),
+          Checkbox(
+            state: installRecommendedDrivers
+                ? CheckboxState.checked
+                : CheckboxState.unchecked,
+            onChanged: (s) => installProvider.installPlan
+                = installProvider.installPlan.copyWith(
+              installRecommendedDrivers: s == CheckboxState.checked,
+            ),
+            trailing: const Text('Install recommended drivers automatically'),
+          ),
+        ],
+      ),
     );
   }
 }

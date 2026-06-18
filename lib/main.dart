@@ -140,7 +140,14 @@ class _AppMainState extends State<_AppMain> {
                   }
                   return null;
                 } (),
-                child: Text(nav.currentPage < _pages.length - 1 ? "Next" : "Finish"),
+                child: Text(() {
+                  final currentPage = _pages[nav.currentPage];
+                  if (currentPage.nextButtonText != null &&
+                      (currentPage.nextButtonText?.isNotEmpty ?? false)) {
+                    return currentPage.nextButtonText!;
+                  }
+                  return nav.currentPage < _pages.length - 1 ? "Next" : "Finish";
+                }()),
               ),
               Gap(16 * Theme.of(context).scaling),
             ],

@@ -8,6 +8,8 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import '../disk_operation_stringifier.dart';
 import '../provider/install_provider.dart';
 import '../provider/page_provider.dart';
+import '../widgets/centered_page_content.dart';
+import '../widgets/page_title.dart';
 import '../widgets/partition_view.dart';
 
 const _kStorageMountpointNone = "<none>";
@@ -56,15 +58,10 @@ class _PartitioningPageWidgetState extends State<_PartitioningPageWidget> {
   Widget build(BuildContext context) {
     final installProvider = context.watch<InstallProvider>();
     final mode = installProvider.selectedDiskInstallMode;
-    final scaling = Theme.of(context).scaling;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text("Partitioning").h3(),
-        Gap(2 * scaling),
-        Text("Edit your partitions below. ${_desc(mode)}").muted(),
-        Gap(8 * scaling),
         Expanded(
           child: () {
             switch (mode) {
@@ -112,14 +109,6 @@ class _PartitioningPageWidgetState extends State<_PartitioningPageWidget> {
     if (installProvider.storageInfo?.devices.containsKey(dev) ?? false) {
       setState(() => _selectedDevice = dev);
     }
-  }
-
-  String _desc(InstallDiskMode mode) {
-    if (mode == InstallDiskMode.erase) return "";
-    if (mode == InstallDiskMode.manual) {
-      return "Assign mountpoints to the partitions by right-clicking them in the partition-bar or the list.";
-    }
-    return "Create, resize, remove and assign mountpoints/filesystems to the partitions by right-clicking them in the partition-bar or the list.";
   }
 }
 
@@ -173,46 +162,45 @@ class _ErasePageState extends State<_ErasePage> {
     final installProvider = context.watch<InstallProvider>();
     final devices = installProvider.storageInfo?.devices;
     final scaling = Theme.of(context).scaling;
-    return SizedBox(
-      width: 350,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        spacing: 12 * scaling,
-        children: [
-          const Text("Select drive to erase below."),
-          if (devices == null || devices.isEmpty) ...[
-            const Alert(
-              leading: Icon(Icons.info),
-              title: Text("Note"),
-              content: Text("No storage devices found. Make sure to plug it in before starting your PC."),
-            ),
-          ] else ...[
-            Select<String>(
-              itemBuilder: (context, item) => Text(item),
-              onChanged: widget.onDeviceSelected,
-              value: widget.selectedDevice,
-              placeholder: const Text('Select a storage device'),
-              popup: SelectPopup(
-                items: SelectItemList(
-                  children: [
-                    for (final dev in devices.entries)
-                      SelectItemButton(
-                        value: dev.key,
-                        child: Text(dev.key),
-                      ),
-                  ],
-                ),
+    return CenteredPageContent(
+      spacing: 12 * scaling,
+      children: [
+        const PageTitle(
+          title: "Erase hard drive",
+          subtitle: "Select drive to erase and install JappeOS below.",
+          alignment: CrossAxisAlignment.center,
+        ),
+        if (devices == null || devices.isEmpty) ...[
+          const Alert(
+            leading: Icon(Icons.info),
+            title: Text("Note"),
+            content: Text("No storage devices found. Make sure to plug it in before starting your PC."),
+          ),
+        ] else ...[
+          Select<String>(
+            itemBuilder: (context, item) => Text(item),
+            onChanged: widget.onDeviceSelected,
+            value: widget.selectedDevice,
+            placeholder: const Text('Select a storage device'),
+            popup: SelectPopup(
+              items: SelectItemList(
+                children: [
+                  for (final dev in devices.entries)
+                    SelectItemButton(
+                      value: dev.key,
+                      child: Text(dev.key),
+                    ),
+                ],
               ),
             ),
-            Alert.destructive(
-              leading: const Icon(Icons.warning),
-              title: const Text("Warning"),
-              content: Text("This will erase all files, operating systems and data from: ${widget.selectedDevice}"),
-            ),
-          ],
+          ),
+          Alert.destructive(
+            leading: const Icon(Icons.warning),
+            title: const Text("Warning"),
+            content: Text("This will erase all files, operating systems and data from: ${widget.selectedDevice}"),
+          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -302,16 +290,27 @@ class _ManualPageState extends State<_ManualPage> {
   @override
   Widget build(BuildContext context) {
     final installProvider = context.watch<InstallProvider>();
-    return _PartitioningLayout(
-      storageInfo: installProvider.storageInfo,
-      mounts: _mounts.map((k, v) => MapEntry(k, v.mountPoint)),
-      selectedDevice: widget.selectedDevice,
-      onDeviceSelected: widget.onDeviceSelected,
-      selectedPartition: _selectedPartition,
-      onPartitionSelected: (v) => setState(() => _selectedPartition = v),
-      onPartitionContextMenu: _buildMenuItems,
-      onCreateDiskInfo: _createDiskInfo,
-      actions: _buildActions(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const PageTitle(
+          title: "Manual Partitioning",
+          subtitle: "Assign mountpoints to the partitions by selecting them in the partition-bar or the list.",
+        ),
+        Expanded(
+          child: _PartitioningLayout(
+            storageInfo: installProvider.storageInfo,
+            mounts: _mounts.map((k, v) => MapEntry(k, v.mountPoint)),
+            selectedDevice: widget.selectedDevice,
+            onDeviceSelected: widget.onDeviceSelected,
+            selectedPartition: _selectedPartition,
+            onPartitionSelected: (v) => setState(() => _selectedPartition = v),
+            onPartitionContextMenu: _buildMenuItems,
+            onCreateDiskInfo: _createDiskInfo,
+            actions: _buildActions(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -602,17 +601,28 @@ class _CustomPageState extends State<_CustomPage> {
 
   @override
   Widget build(BuildContext context) {
-    return _PartitioningLayout(
-      storageInfo: _createAppliedStorageInfo(),
-      originalStorageInfo: _originalStorageInfo,
-      mounts: _getMountpoints(),
-      selectedDevice: widget.selectedDevice,
-      onDeviceSelected: widget.onDeviceSelected,
-      selectedPartition: _selectedPartition,
-      onPartitionSelected: (v) => setState(() => _selectedPartition = v),
-      onPartitionContextMenu: _buildMenuItems,
-      onCreateDiskInfo: _createDiskInfo,
-      actions: _buildActions(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const PageTitle(
+          title: "Custom Partitioning",
+          subtitle: "Create, resize, remove and assign mountpoints/filesystems to the partitions by selecting them in the partition-bar or the list.",
+        ),
+        Expanded(
+          child: _PartitioningLayout(
+            storageInfo: _createAppliedStorageInfo(),
+            originalStorageInfo: _originalStorageInfo,
+            mounts: _getMountpoints(),
+            selectedDevice: widget.selectedDevice,
+            onDeviceSelected: widget.onDeviceSelected,
+            selectedPartition: _selectedPartition,
+            onPartitionSelected: (v) => setState(() => _selectedPartition = v),
+            onPartitionContextMenu: _buildMenuItems,
+            onCreateDiskInfo: _createDiskInfo,
+            actions: _buildActions(),
+          ),
+        ),
+      ],
     );
   }
 

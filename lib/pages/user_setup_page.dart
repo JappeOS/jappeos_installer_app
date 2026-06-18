@@ -8,6 +8,8 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import '../hostname_generator.dart';
 import '../provider/install_provider.dart';
 import '../provider/page_provider.dart';
+import '../widgets/centered_page_content.dart';
+import '../widgets/page_title.dart';
 
 class UserSetupPage extends InstallerPage {
   UserSetupPage() : super('User Setup');
@@ -81,17 +83,15 @@ class _UserSetupPageWidgetState extends State<_UserSetupPageWidget>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final scaling = Theme.of(context).scaling;
     return Form(
       controller: _formController,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: CenteredPageContent(
         children: [
-          const Text("User Setup").h3(),
-          Gap(2 * scaling),
-          const Text("Create your user and pick a hostname below.").muted(),
-          Gap(8 * scaling),
+          const PageTitle(
+            title: "User Setup",
+            subtitle: "Create your user and pick a hostname below.",
+            alignment: CrossAxisAlignment.center,
+          ),
           FormTableLayout(
             rows: [
               FormField<String>(

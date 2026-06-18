@@ -8,7 +8,7 @@ import '../widgets/page_loading_indicator.dart';
 import 'installer_page.dart';
 
 class SummaryPage extends InstallerPage {
-  SummaryPage() : super('Summary');
+  SummaryPage() : super('Summary', 'Install');
 
   @override
   List<Widget> widget(BuildContext context, int index) {
