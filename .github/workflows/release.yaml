@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: ["main"]
+    branches: ["dev", "testing", "stable"]
     paths:
       - "pubspec.yaml"
 
@@ -19,6 +19,6 @@ jobs:
     with:
       package-name: jappeos-installer
       flutter: true
-      channel: dev
+      channel: ${{ github.ref_name }}
       commit-sha: ${{ needs.release.outputs.commit-sha }}
     secrets: inherit
