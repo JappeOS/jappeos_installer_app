@@ -1,6 +1,6 @@
 pkgname=jappeos_installer
-pkgver=0.0.3
-_tag=dev-v0.0.3
+pkgver=0.0.4
+_tag=dev-v0.0.4
 pkgrel=1
 pkgdesc="Installer app for JappeOS."
 arch=('x86_64')
