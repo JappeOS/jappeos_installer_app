@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Installer
+Comment=Install and manage software
+Keywords=install;package;software;app;application;
+Exec=/opt/jappeos_installer/jappeos_installer
+Icon=system-software-install
+Type=Application
+Categories=System;Utility;PackageManager;
+StartupNotify=true
+StartupWMClass=jappeos-installer
