@@ -5,6 +5,7 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../provider/install_provider.dart';
 import '../provider/page_provider.dart';
+import '../widgets/centered_page_content.dart';
 import '../widgets/page_loading_indicator.dart';
 import 'installer_page.dart';
 
@@ -90,28 +91,23 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
           _canContinue = true;
           context.read<PageProvider>().setAllowAnyNavigation(true);
         }
-        return SizedBox(
-          width: 350,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            spacing: 12 * scaling,
-            children: [
-              if (snapshot.hasError)
-                ..._buildAsyncError(snapshot)
-              else if (installState == InstallState.failed)
-                ..._buildInstallError(installProvider.service.errorMessage)
-              else if (installState == InstallState.cancelled)
-                ..._buildInstallCanceled()
-              else if (installState == InstallState.succeeded)
-                ..._buildInstallComplete()
-              else
-                ..._buildInstallProgress(
-                  installState == InstallState.idle,
-                  installProgress,
-                ),
-            ],
-          ),
+        return CenteredPageContent(
+          spacing: 12 * scaling,
+          children: [
+            if (snapshot.hasError)
+              ..._buildAsyncError(snapshot)
+            else if (installState == InstallState.failed)
+              ..._buildInstallError(installProvider.service.errorMessage)
+            else if (installState == InstallState.cancelled)
+              ..._buildInstallCanceled()
+            else if (installState == InstallState.succeeded)
+              ..._buildInstallComplete()
+            else
+              ..._buildInstallProgress(
+                installState == InstallState.idle,
+                installProgress,
+              ),
+          ],
         );
       },
     );
@@ -145,7 +141,7 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
 
   List<Widget> _buildInstallComplete() {
     return [
-      const Text("Install complete!").x5Large(),
+      const Text("Install complete!").x3Large(),
       const Text("Please remove the installation media (Disk or USB-drive) and restart to the newly installed OS."),
       const Text("If you choose to not restart now, you will remain in the live-environment and no files or changes will be saved on this computer.").muted().italic(),
       const Gap(0),
@@ -165,7 +161,7 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
     return [
       Text(
         isIdle || progress.step.isEmpty ? "Installing..." : progress.step,
-      ).x5Large(),
+      ).x3Large(),
       Text(
         isIdle || progress.message.isEmpty
             ? "Waiting for installation to begin..."

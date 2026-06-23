@@ -2,7 +2,7 @@ name: jappeos_installer
 description: "Installer app for JappeOS."
 publish_to: 'none'
 
-version: 0.0.6
+version: 0.0.7
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
