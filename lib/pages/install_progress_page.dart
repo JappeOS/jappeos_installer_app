@@ -89,7 +89,9 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
         if (installState != InstallState.running &&
             installState != InstallState.idle) {
           _canContinue = true;
-          context.read<PageProvider>().setAllowAnyNavigation(true);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.read<PageProvider>().setAllowAnyNavigation(true);
+          });
         }
         return CenteredPageContent(
           spacing: 12 * scaling,
@@ -141,9 +143,9 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
 
   List<Widget> _buildInstallComplete() {
     return [
-      const Text("Install complete!").x3Large(),
-      const Text("Please remove the installation media (Disk or USB-drive) and restart to the newly installed OS."),
-      const Text("If you choose to not restart now, you will remain in the live-environment and no files or changes will be saved on this computer.").muted().italic(),
+      const Text("Install complete!").x3Large().textCenter(),
+      const Text("Please remove the installation media (Disk or USB-drive) and restart to the newly installed OS.").textCenter(),
+      const Text("If you choose to not restart now, you will remain in the live-environment and no files or changes will be saved on this computer.").muted().italic().textCenter(),
       const Gap(0),
       Checkbox(
         state: _rebootSystem ? CheckboxState.checked : CheckboxState.unchecked,
@@ -161,12 +163,12 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
     return [
       Text(
         isIdle || progress.step.isEmpty ? "Installing..." : progress.step,
-      ).x3Large(),
+      ).x3Large().textCenter(),
       Text(
         isIdle || progress.message.isEmpty
             ? "Waiting for installation to begin..."
             : progress.message,
-      ),
+      ).textCenter(),
       Progress(
         progress: isIdle ? null : progress.percentage.clamp(0, 1),
         min: 0,
