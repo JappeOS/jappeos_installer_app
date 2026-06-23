@@ -26,7 +26,7 @@ class InstallProvider extends ChangeNotifier {
   }
 
   LocaleInfo? _localeInfo;
-  StorageInfo? _storageInfo = StorageInfo(
+  StorageInfo? _storageInfo; /*= StorageInfo(
     devices: {
       "/dev/sda": StorageDeviceInfo(
         device: "/dev/sda",
@@ -53,7 +53,7 @@ class InstallProvider extends ChangeNotifier {
         ],
       ),
     },
-  );
+  );*/
   List<String> _planWarnings = [];
   InstallDiskMode _selectedDiskInstallMode = InstallDiskMode.erase;
   int _latestPlanId = 0;
@@ -72,18 +72,13 @@ class InstallProvider extends ChangeNotifier {
 
   InstallProvider(this.service) {
     service.addListener(_onChanged);
+    _loadInitial();
   }
 
   @override
   void dispose() {
     service.removeListener(_onChanged);
     super.dispose();
-  }
-
-  Future<void> loadInitial() async {
-    _localeInfo = await service.getLocaleInfo();
-    _storageInfo = await service.getStorageInfo();
-    notifyListeners();
   }
 
   Future<void> createPlan() async {
@@ -105,6 +100,12 @@ class InstallProvider extends ChangeNotifier {
       throw Exception("No install plan created yet");
     }
     await service.beginInstallation(_latestPlanId);
+  }
+
+  Future<void> _loadInitial() async {
+    _localeInfo = await service.getLocaleInfo();
+    _storageInfo = await service.getStorageInfo();
+    notifyListeners();
   }
 
   void _onChanged() {
