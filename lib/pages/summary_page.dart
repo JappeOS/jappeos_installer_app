@@ -124,9 +124,11 @@ class _SummaryPageWidgetState extends State<_SummaryPageWidget> {
     final installProvider = context.watch<InstallProvider>();
     final scaling = Theme.of(context).scaling;
 
-    void title(String text) {
+    void title(String text, [Color? color]) {
       widgets.add(Gap(8 * scaling));
-      widgets.add(Text(text));
+      widgets.add(
+        Text(text, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+      );
     }
 
     void container(Widget child) {
@@ -139,7 +141,7 @@ class _SummaryPageWidgetState extends State<_SummaryPageWidget> {
     }
 
     if (installProvider.planWarnings.isNotEmpty) {
-      title("Warnings:");
+      title("Warnings:", Colors.amber);
       container(
         Text(() {
           String res = "";

@@ -59,7 +59,8 @@ class _WelcomePageWidget extends StatelessWidget {
     BuildContext context,
     Map<String, String> locales,
     String? currentLocale,
-    void Function(String) onLocaleSelected) {
+    void Function(String) onLocaleSelected,
+  ) {
     final sortedLocales = locales.keys.toList()
       ..sort((a, b) => locales[a]!.compareTo(locales[b]!));
     return ListView.builder(

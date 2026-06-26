@@ -53,8 +53,8 @@ class _TimezonePageWidgetState extends State<_TimezonePageWidget> {
     }
 
     final index = currentTimezone?.indexOf('/');
-    final currentRegion = currentTimezone?.substring(0, index);
-    final currentZone = index == null
+    final currentRegion = index == -1 ? null : currentTimezone?.substring(0, index);
+    final currentZone = index == null || index == -1
         ? null
         : currentTimezone?.substring(index + 1);
 
