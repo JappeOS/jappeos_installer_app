@@ -162,7 +162,7 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
   List<Widget> _buildInstallProgress(bool isIdle, InstallProgress progress) {
     return [
       Text(
-        isIdle || progress.step.isEmpty ? "Installing..." : progress.step,
+        "Installing (${isIdle || progress.step.isEmpty ? "Waiting" : progress.step})",
       ).x3Large().textCenter(),
       Text(
         isIdle || progress.message.isEmpty
