@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:crypt/crypt.dart';
 import 'package:flutter/foundation.dart';
 import 'package:jappeos_installer/pages/installer_page.dart';
 import 'package:provider/provider.dart';
@@ -59,9 +60,12 @@ class _UserSetupPageWidgetState extends State<_UserSetupPageWidget>
 
     final values = _formController.values;
     final installProvider = context.read<InstallProvider>();
+    final password = _passwordKey[values];
     installProvider.installPlan = installProvider.installPlan.copyWith(
       username: _nameKey[values],
-      password: _passwordKey[values],
+      password: password != null && password.isNotEmpty
+          ? Crypt.sha512(password, rounds: 5000).toString()
+          : null,
       hostname: _hostnameKey[values],
     );
 
