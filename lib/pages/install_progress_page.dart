@@ -161,8 +161,8 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
 
   List<Widget> _buildInstallProgress(bool isIdle, InstallProgress progress) {
     return [
-      Text(
-        "Installing (${isIdle || progress.step.isEmpty ? "Waiting" : progress.step})",
+      const Text(
+        "Installing JappeOS",
       ).x3Large().textCenter(),
       Text(
         isIdle || progress.message.isEmpty
