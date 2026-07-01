@@ -21,8 +21,20 @@ import 'provider/install_provider.dart';
 import 'provider/page_provider.dart';
 
 const kIsWindowedDesktopApp = true;
+final kThemeLight = _getTheme(false);
+final kThemeDark = _getTheme(true);
 
-void main() {
+ThemeData _getTheme(bool dark) => ThemeData(
+  colorScheme: dark
+      ? ColorSchemes.darkDefaultColor
+      : ColorSchemes.lightDefaultColor,
+  radius: 0.9,
+  surfaceOpacity: 0.85,
+  surfaceBlur: 9,
+);
+
+Future<void> main() async {
+  await WindowHeaderBar.ensureInitialized();
   runApp(const App());
 }
 
@@ -41,10 +53,9 @@ class App extends StatelessWidget {
           child: child,
         ),
         debugShowCheckedModeBanner: false,
-        theme: const ThemeData(
-          colorScheme: ColorSchemes.lightBlue,
-          radius: 0.5,
-        ),
+        theme: kThemeLight,
+        darkTheme: kThemeDark,
+        themeMode: ThemeMode.dark,
         home: const _RootWrapper(),
       ),
     );
@@ -168,6 +179,12 @@ class _RootWrapper extends StatelessWidget {
     return Scaffold(
       // headers: kIsWindowedDesktopApp ? [HeaderBar(title: currentPageTitle, isClosable: true, onClose: (p0) {}, isMaximizable: true, onMaximize: (p0) {}, isMinimizable: true, onMinimize: (p0) {}, isActive: true)] : [],
       backgroundColor: !kIsWindowedDesktopApp ? Colors.blue : null,
+      headers: kIsWindowedDesktopApp ? const [
+        WindowHeaderBar(
+          title: "Install JappeOS",
+          //backgroundColor: Theme.of(context).colorScheme.sidebar,
+        ),
+      ] : [],
       child: kIsWindowedDesktopApp ? const _AppMain() : Stack(
         children: [
           Positioned.fill(
